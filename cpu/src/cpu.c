@@ -18,14 +18,14 @@ int main(int argc, char* argv[]) {
 
 void interrupt()
 {
-    int server_fd = iniciar_servidor();
+    int server_fd = iniciar_servidor("PUERTO_ESCUCHA_INTERRUPT");
 	int conexion_kernel = esperar_cliente(server_fd);
     responder_handshake(conexion_kernel);
 }
 
 void instrucciones()
 {
-    int server_fd = iniciar_servidor();
+    int server_fd = iniciar_servidor("PUERTO_ESCUCHA_DISPATCH");
 	int conexion_kernel = esperar_cliente(server_fd);
     responder_handshake(conexion_kernel);
 }

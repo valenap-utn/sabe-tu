@@ -64,4 +64,5 @@ int recibir_operacion(int);
 
 void handshake(int conexion);
 int conectar(char* puerto,char* ip);
+
 #endif /* UTILS_H_ */

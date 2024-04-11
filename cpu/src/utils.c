@@ -118,7 +118,7 @@ void liberar_conexion(int socket_cliente)
 
 t_log* logger;
 
-int iniciar_servidor(void)
+int iniciar_servidor(char* puerto)
 {
 	// Quitar esta línea cuando hayamos terminado de implementar la funcion
 //	assert(!"no implementado!");
@@ -132,7 +132,7 @@ int iniciar_servidor(void)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	getaddrinfo(NULL, config_get_string_value(config,"PUERTO_ESCUCHA"), &hints, &servinfo);
+	getaddrinfo(NULL, config_get_string_value(config,puerto), &hints, &servinfo);
 
 	// Creamos el socket de escucha del servidor
 
