@@ -4,7 +4,7 @@
 #include <utils/hello.h>
 #include "utils.h"
 
-void handshake(int conexion);
-int conectar(char* puerto,char* ip);
 
-#endif ENTRADASALIDA_H_
+
+
+#endif 

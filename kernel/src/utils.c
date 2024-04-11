@@ -1,4 +1,8 @@
 #include "utils.h"
+t_config* config;
+
+t_log* logger;
+
 
 void* serializar_paquete(t_paquete* paquete, int bytes)
 {
@@ -114,7 +118,6 @@ void liberar_conexion(int socket_cliente)
 
 // #include"utils.h"
 
-t_log* logger;
 
 int iniciar_servidor(void)
 {
@@ -123,14 +126,14 @@ int iniciar_servidor(void)
 
 	int socket_servidor;
 
-	struct addrinfo hints, *servinfo, *p;
+	struct addrinfo hints, *servinfo;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	getaddrinfo(NULL, PUERTO, &hints, &servinfo);
+	getaddrinfo(NULL, config_get_string_value(config,"PUERTO_ESCUCHA"), &hints, &servinfo);
 
 	// Creamos el socket de escucha del servidor
 
@@ -152,7 +155,7 @@ int iniciar_servidor(void)
 
 	return socket_servidor;
 }
-
+PUERTO
 int esperar_cliente(int socket_servidor)
 {
 	// Quitar esta línea cuando hayamos terminado de implementar la funcion
@@ -233,7 +236,7 @@ int conectar(char* puerto,char* ip,char* nombre){
 void handshake(int conexion,char* nombre)
 {
     int i = 1;
-    send(conexion,&i,sizeof(int),NULL);
+    send(conexion,&i,sizeof(int),0);
 
     recv(conexion,&i,sizeof(int),MSG_WAITALL);
     if(i == 1){

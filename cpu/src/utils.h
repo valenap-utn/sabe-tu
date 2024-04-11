@@ -43,15 +43,8 @@ void enviar_paquete(t_paquete* paquete, int socket_cliente);
 void liberar_conexion(int socket_cliente);
 void eliminar_paquete(t_paquete* paquete);
 
-
-typedef enum
-{
-	MENSAJE,
-	PAQUETE
-}op_code;
-
 extern t_log* logger;
-t_config* config;
+extern t_config* config;
 
 void* recibir_buffer(int*, int);
 

@@ -1,6 +1,9 @@
+#ifndef _CPU_H
+#define _CPU_H
+
+
 #include <stdlib.h>
 #include <stdio.h>
-#include <utils/hello.h>
 #include "utils.h"
 #include<pthread.h>
 
@@ -11,3 +14,5 @@ pthread_t dispatch;
 
 void interrupt();
 void instrucciones();
+
+#endif

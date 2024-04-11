@@ -8,15 +8,16 @@
 int main(int argc, char* argv[]) {
     
     config = config_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/kernel/kernel.config");
-    logger = log_create("kernel/Kernel.log","KERNEL",1,LOG_LEVEL_INFO);
+    logger = log_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/kernel/Kernel.log","KERNEL",1,LOG_LEVEL_INFO);
 
 
     int server_fd = iniciar_servidor();
+    log_info(logger,"hola soy el kernel y funciono");
 	conexion_I_O = esperar_cliente(server_fd);
     {
         int i;
         recv(conexion_I_O,&i,sizeof(int),MSG_WAITALL);
-        send(conexion_I_O,i,sizeof(int),NULL);
+        send(conexion_I_O,&i,sizeof(int),0);
     }
 
 

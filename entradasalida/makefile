@@ -59,3 +59,12 @@ memcheck: debug
 .PHONY: helgrind
 helgrind: debug
 	valgrind --tool=helgrind $(HELGRIND_FLAGS) ./$(BIN) $(ARGS)
+
+main.out: entradasalida.o utils.o
+	gcc entradasalida.o utils.o -o entradasalida
+
+utils.o: utils.c
+	gcc -c utils.c -o utils.o
+
+entradasalida.o: entradasalida.c
+	gcc -c entradasalida.c -o entradasalida.o

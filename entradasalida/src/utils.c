@@ -1,5 +1,5 @@
 #include "utils.h"
-
+t_config *config;
 
 void* serializar_paquete(t_paquete* paquete, int bytes)
 {
@@ -124,14 +124,14 @@ int iniciar_servidor(void)
 
 	int socket_servidor;
 
-	struct addrinfo hints, *servinfo, *p;
+	struct addrinfo hints, *servinfo;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	getaddrinfo(NULL, PUERTO, &hints, &servinfo);
+	getaddrinfo(NULL, config_get_string_value(config,"PUERTO_ESCUCHA"), &hints, &servinfo);
 
 	// Creamos el socket de escucha del servidor
 
@@ -233,7 +233,7 @@ int conectar(char* puerto,char* ip){
 void handshake(int conexion)
 {
     int i = 1;
-    send(conexion,&i,sizeof(int),NULL);
+    send(conexion,&i,sizeof(int),0);
 
     recv(conexion,&i,sizeof(int),MSG_WAITALL);
     if(i == 1){

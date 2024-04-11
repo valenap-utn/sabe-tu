@@ -59,3 +59,11 @@ memcheck: debug
 .PHONY: helgrind
 helgrind: debug
 	valgrind --tool=helgrind $(HELGRIND_FLAGS) ./$(BIN) $(ARGS)
+
+main.out: kernel.o utils.o
+	gcc kernel.o utils.o -o kernel
+
+kernel.o: kernel.c
+	gcc -c kernel.c -o kernel.o
+utils.o: utils.c
+	gcc -c utils.c -o utils.o

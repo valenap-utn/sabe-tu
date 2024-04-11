@@ -5,12 +5,15 @@
 int main(int argc, char* argv[]) {
     
     config = config_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/cpu/cpu.config");
-    logger = log_create("cpu/cpu.log","CPU",1,LOG_LEVEL_INFO);
+    logger = log_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/cpu/cpu.log","CPU",1,LOG_LEVEL_INFO);
 
     conexion_memoria = conectar("PUERTO_MEMORIA","IP_MEMORIA");
     
-    pthread_create(&interrupciones,NULL,interrupt,NULL);
-    pthread_create(&dispatch,NULL,instrucciones,NULL);
+    pthread_create(&interrupciones,NULL,(void*)interrupt,NULL);
+    pthread_create(&dispatch,NULL,(void*)instrucciones,NULL);
+
+    pthread_join(interrupciones,NULL);
+    pthread_join(dispatch,NULL);
 }
 
 void interrupt()

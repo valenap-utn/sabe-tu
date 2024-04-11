@@ -12,7 +12,6 @@
 #include<commons/collections/list.h>
 #include<assert.h>
 #include<commons/config.h>
-#define PUERTO "4444"
 
 typedef enum
 {
@@ -33,7 +32,6 @@ typedef struct
 } t_paquete;
 
 
-
 int crear_conexion(char* ip, char* puerto);
 void enviar_mensaje(char* mensaje, int socket_cliente);
 t_paquete* crear_paquete(void);
@@ -44,14 +42,8 @@ void eliminar_paquete(t_paquete* paquete);
 
 
 
-typedef enum
-{
-	MENSAJE,
-	PAQUETE
-}op_code;
-
 extern t_log* logger;
-t_config* config;
+extern t_config* config;
 
 void* recibir_buffer(int*, int);
 

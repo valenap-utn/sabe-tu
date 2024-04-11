@@ -50,14 +50,9 @@ int conectar(char* puerto,char* ip);
 //
 
 
-typedef enum
-{
-	MENSAJE,
-	PAQUETE
-}op_code;
 
 extern t_log* logger;
-t_config* config;
+extern t_config* config;
 
 void* recibir_buffer(int*, int);
 
@@ -67,5 +62,6 @@ t_list* recibir_paquete(int);
 void recibir_mensaje(int);
 int recibir_operacion(int);
 
-
+void handshake(int conexion);
+int conectar(char* puerto,char* ip);
 #endif /* UTILS_H_ */
