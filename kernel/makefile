@@ -60,10 +60,13 @@ memcheck: debug
 helgrind: debug
 	valgrind --tool=helgrind $(HELGRIND_FLAGS) ./$(BIN) $(ARGS)
 
-main.out: kernel.o utils.o
+main.out: kernel.o utils.o pcb.o
 	gcc kernel.o utils.o -o kernel
 
 kernel.o: kernel.c
 	gcc -c kernel.c -o kernel.o
 utils.o: utils.c
 	gcc -c utils.c -o utils.o
+
+pcb.o: pcb.c 
+	gcc -c pcb.c -o pcb.o

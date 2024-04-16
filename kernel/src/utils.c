@@ -155,7 +155,6 @@ int iniciar_servidor(void)
 
 	return socket_servidor;
 }
-PUERTO
 int esperar_cliente(int socket_servidor)
 {
 	// Quitar esta línea cuando hayamos terminado de implementar la funcion
