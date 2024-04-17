@@ -14,9 +14,8 @@ int main(int argc, char* argv[]) {
     new = list_create();
     blocked =list_create();
 
-    pthread_t cortoPlazo;
 
-    pthread_create(&cortoPlazo,NULL,planFIFO,NULL);
+    iniciar_planificaciones();
     int server_fd = iniciar_servidor();
     log_info(logger,"hola soy el kernel y funciono");
 	conexion_I_O = esperar_cliente(server_fd);
@@ -34,13 +33,12 @@ int main(int argc, char* argv[]) {
 
     while(1)
     {
-        char** comando = inicia_bash();
+        char** comando = iniciarBash();
         switch (procesar_comando(comando[0]))
         {
         case INICIAR_PROCESO:
-            PCB* pcb = iniciar_pcb();
-
-            // send(conexion_memoria,comando[1],0,0);
+            PCB* pcb = iniciar_pcb(config_get_int_value(config,"QUANTUM"));
+            paquete_a_memoria(comando[1],conexion_memoria,pcb->pid);
             list_add(new,pcb);
         break;
         case FINALIZAR_PROCESO:
@@ -66,6 +64,7 @@ int main(int argc, char* argv[]) {
             log_error(logger,"consola mal utilizada");
         break;
         }
+        matar_comando(comando);
     }
 
     return 0;
@@ -73,10 +72,25 @@ int main(int argc, char* argv[]) {
 
 void planFIFO()
 {
+    while(1)
+    {
+        execute = list_remove(ready,0);
 
-    PCB* a_ejecutar = list_remove(ready,0);
+        enviar_al_CPU(execute);
+    }
+}
 
-    enviar_al_CPU(a_ejecutar);
+void planRR(void)
+{
+    while(1)
+    {
+        execute = list_remove(ready,0);
+        pthread_t interrupciones;
+        pthread_create(&interrupciones,NULL,(void*)interrupcionesRR,execute);
+
+
+        enviar_al_CPU(execute);
+    }
 }
 
 void enviar_al_CPU(PCB* a_ejecutar)
@@ -105,4 +119,32 @@ void enviar_al_CPU(PCB* a_ejecutar)
     recv(conexion_cpu_dispatch,&(a_ejecutar->EDX),sizeof(uint32_t),MSG_WAITALL);
     recv(conexion_cpu_dispatch,&(a_ejecutar->SI),sizeof(uint32_t),MSG_WAITALL);
     recv(conexion_cpu_dispatch,&(a_ejecutar->DI),sizeof(uint32_t),MSG_WAITALL);
+}
+
+void iniciar_planificaciones(void)
+{
+    pthread_t cortoPlazo;
+
+    char *planificacion = string_new();
+    string_append(&planificacion,config_get_string_value(config,"ALGORITMO_PLANIFICACION"));
+    if(string_equals_ignore_case(planificacion,"fifo"))pthread_create(&cortoPlazo,NULL,(void*)planFIFO,NULL);
+    if(string_equals_ignore_case(planificacion,"rr")) pthread_create(&cortoPlazo,NULL,(void*)planRR,NULL);
+}
+
+void interrupcionesRR(PCB proceso)
+{
+
+	// pthread_mutex_lock(&para_frenar);
+	// pthread_mutex_unlock(&para_frenar);
+    int i = proceso.pid;
+	usleep(proceso.quantum);
+    if(execute!=NULL)
+	{	
+		if(i == execute->pid)
+		{
+            i = 0;
+			send(conexion_cpu_interrupt,&i,sizeof(int),0);
+			log_info(logger,"PID: <%d> - Desalojado por fin de Quantum",execute->pid);
+		}
+	}
 }

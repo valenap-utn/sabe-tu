@@ -2,7 +2,9 @@
 #define PCB_H_
 
 #include <commons/string.h>
+#include<stdlib.h>
 #include <stdint.h>
+#include<readline/readline.h>
 
 enum posibles_comandos{
 	INICIAR_PROCESO,
@@ -12,6 +14,11 @@ enum posibles_comandos{
     MULTIPROGRAMACION,
     PROCESO_ESTADO,
     EJECUTAR_SCRIPT,
+};
+enum comunicacion_con_memoria{
+    CREACION,
+    FINALIZACION,
+    AJUSTAR
 };
 
 struct PCB
@@ -37,6 +44,8 @@ int pids = 1;
 
 char** iniciarBash();
 int procesar_comando(char* comando);
-PCB* iniciar_pcb();
+PCB *iniciar_pcb(int quantum);
+void matar_comando(char** comando);
+void paquete_a_memoria(char* comando,int conexion,int pid);
 
 #endif

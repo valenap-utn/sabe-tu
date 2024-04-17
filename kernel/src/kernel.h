@@ -15,6 +15,11 @@ t_list *ready;
 t_list *new;
 t_list *blocked;
 
-// PCB *execute;
+PCB *execute;
 void planFIFO(void);
+void planRR(void);
+void interrupcionesRR(PCB proceso);
+void enviar_al_CPU(PCB* a_ejecutar);
+void iniciar_planificaciones();
+
 #endif

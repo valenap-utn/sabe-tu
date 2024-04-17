@@ -1,5 +1,5 @@
 #include "pcb.h"
-
+#include<sys/socket.h>
 
 char** iniciarBash(){
     char *comando = string_new();
@@ -22,7 +22,7 @@ int procesar_comando(char* comando)
 }
 
 
-PCB *iniciar_pcb()
+PCB *iniciar_pcb(int quantum)
 {
     PCB* pcb = malloc(sizeof(PCB));
     pcb->PC = pids++;
@@ -37,5 +37,21 @@ PCB *iniciar_pcb()
     pcb->EDX = 0;
     pcb->SI = 0;
     pcb->DI = 0;
+    pcb->quantum = quantum;
     return pcb;
+}
+
+void matar_comando(char** comando)
+{
+    string_array_destroy(comando);
+}
+
+void paquete_a_memoria(char* comando,int conexion,int pid)
+{
+    int i = CREACION;
+    send(conexion,&i,sizeof(int),0);
+    i = string_array_size(&comando);
+    send(conexion,&i,sizeof(int),0);
+    send(conexion,comando,i,0);
+    send(conexion,&pid,sizeof(int),0);
 }
