@@ -40,7 +40,6 @@ struct PCB
 
 typedef struct PCB PCB;
 
-int pids = 1;
 
 char** iniciarBash();
 int procesar_comando(char* comando);

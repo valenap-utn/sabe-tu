@@ -76,7 +76,8 @@ void planFIFO()
     {
         execute = list_remove(ready,0);
 
-        enviar_al_CPU(execute);
+        t_list* lista = enviar_al_CPU(execute);
+        atender_syscall(lista);
     }
 }
 
@@ -89,11 +90,12 @@ void planRR(void)
         pthread_create(&interrupciones,NULL,(void*)interrupcionesRR,execute);
 
 
-        enviar_al_CPU(execute);
+        t_list* lista = enviar_al_CPU(execute);
+        atender_syscall(lista);
     }
 }
 
-void enviar_al_CPU(PCB* a_ejecutar)
+t_list* enviar_al_CPU(PCB* a_ejecutar)
 {
     send(conexion_cpu_dispatch,&(a_ejecutar->pid),sizeof(int),0);
     send(conexion_cpu_dispatch,&(a_ejecutar->PC),sizeof(uint32_t),0);
@@ -119,6 +121,11 @@ void enviar_al_CPU(PCB* a_ejecutar)
     recv(conexion_cpu_dispatch,&(a_ejecutar->EDX),sizeof(uint32_t),MSG_WAITALL);
     recv(conexion_cpu_dispatch,&(a_ejecutar->SI),sizeof(uint32_t),MSG_WAITALL);
     recv(conexion_cpu_dispatch,&(a_ejecutar->DI),sizeof(uint32_t),MSG_WAITALL);
+
+    bool paq;
+    recv(conexion_cpu_dispatch,&(paq),sizeof(bool),MSG_WAITALL);
+    if(paq)return recibir_paquete(conexion_cpu_dispatch);
+    return NULL;
 }
 
 void iniciar_planificaciones(void)
@@ -147,4 +154,18 @@ void interrupcionesRR(PCB proceso)
 			log_info(logger,"PID: <%d> - Desalojado por fin de Quantum",execute->pid);
 		}
 	}
+}
+
+
+void atender_syscall(t_list* lista)
+{
+    switch((int)list_get(lista,0))
+    {
+        case SALIR:
+
+        break;
+        case DORMIR:
+
+        break;
+    }
 }

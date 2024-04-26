@@ -1,5 +1,7 @@
 #include "memoria.h"
 
+int pid;
+
 int main(int argc, char* argv[]) {
     
     config = config_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/memoria/memoria.config");
@@ -25,7 +27,45 @@ int main(int argc, char* argv[]) {
 void comunicacion_cpu(int conexion)
 {
     log_info(logger,"el hilo cpu");
+    while(1)
+    {
+        int peticion;
+        recv(conexion,&peticion,sizeof(int),MSG_WAITALL);
+        switch (peticion)
+        {
+        case INSTRUCCION:
+            int pc;
+
+            recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+            recv(conexion,&pc,sizeof(int),MSG_WAITALL);
+
+            proceso *p = (proceso*)list_find(procesos,cmpProcesoId);
+            char* instruccion = string_new();
+            string_append(&instruccion,list_get(p->instrucciones,pc));
+            pc = string_length(instruccion);
+
+            send(conexion,&pc,sizeof(int),0);
+            send(conexion,instruccion,sizeof(char)*pc,0);
+            free(instruccion);
+        break;
+        case MARCO:
+
+        break;
+        case ESCRITURA:
+
+        break;
+        case LECTURA:
+
+        break;
+        default:
+            log_error(logger,"error en la comunicacion con el cpu");
+            break;
+        }
+    }
 }
+
+bool cmpProcesoId(proceso *p){return p->pid == pid;}
+
 
 void comunicacion_kernel(int conexion)
 {

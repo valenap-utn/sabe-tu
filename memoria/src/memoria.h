@@ -9,10 +9,18 @@
 #include<commons/collections/list.h>
 #include<commons/string.h>
 
-enum comunicacion_con_memoria{
+enum comunicacion_con_kernel{
     CREACION,
     FINALIZACION,
     AJUSTAR
+};
+
+enum comunicacion_con_cpu
+{
+    INSTRUCCION,
+    MARCO,
+    LECTURA,
+    ESCRITURA
 };
 
 struct proceso{
@@ -34,4 +42,6 @@ void comunicacion_cpu(int conexion);
 void comunicacion_kernel(int conexion);
 void comunicacion_io(int conexion);
 struct proceso *guardar_proceso(int conexion);
+bool cmpProcesoId(proceso *p);
+
 #endif

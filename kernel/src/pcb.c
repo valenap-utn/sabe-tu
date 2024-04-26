@@ -1,5 +1,6 @@
 #include "pcb.h"
 #include<sys/socket.h>
+int pids = 1;
 
 char** iniciarBash(){
     char *comando = string_new();
