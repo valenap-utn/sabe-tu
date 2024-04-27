@@ -61,7 +61,7 @@ helgrind: debug
 	valgrind --tool=helgrind $(HELGRIND_FLAGS) ./$(BIN) $(ARGS)
 
 
-main.out: cpu.o utils.o
+main.out: cpu.o utils.o instrucciones.o
 	gcc cpu.o utils.o -o cpu
 
 utils.o: utils.c
@@ -69,3 +69,6 @@ utils.o: utils.c
 
 cpu.o: cpu.c
 	gcc -c cpu.c -o cpu.o
+
+instrucciones.o: instrucciones.c
+	gcc -c instrucciones.c -o instrucciones.o

@@ -55,5 +55,6 @@ void devolver_contexto(int conexion);
 char* fetch(int conexion);
 t_list *decode(char* instruccion);
 void *stringAregistro(char* registro);
+void execute(t_list *instruccion);
 
 #endif

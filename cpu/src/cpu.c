@@ -55,7 +55,7 @@ void instrucciones()
         actualizar_registros(conexion_kernel);
         while(interrupcion && sysCall)
         {
-            char* instruccion = fetch(conexion_kernel);
+            char* instruccion = fetch(conexion_memoria);
             t_list * ins = decode(instruccion);
             execute(ins);
         }
@@ -132,7 +132,7 @@ t_list *decode(char* instruccion)
 	{
         list_add(operandos,(void*)SET);
 		list_add(operandos, stringAregistro(traduccion[1]));
-		list_add(operandos,strtoul(traduccion[2],NULL,10));
+		list_add(operandos,(void*)strtoul(traduccion[2],NULL,10));
 	}
 	if (string_equals_ignore_case(traduccion[0], "SUM")) 
 	{
@@ -162,17 +162,17 @@ t_list *decode(char* instruccion)
 	{
         list_add(operandos,(void*)JNZ);
 		list_add(operandos,stringAregistro(traduccion[1]));
-		list_add(operandos,strtoul(traduccion[2],NULL,10));
+		list_add(operandos,(void*)strtoul(traduccion[2],NULL,10));
 	}
 	if(string_equals_ignore_case(traduccion[0], "RESIZE"))
 	{
         list_add(operandos,(void*)RESIZE);
-        list_add(operandos,strtoul(traduccion[1],NULL,10));
+        list_add(operandos,(void*)strtoul(traduccion[1],NULL,10));
 	}
     if(string_equals_ignore_case(traduccion[0], "COPY_STRING"))
 	{
         list_add(operandos,(void*)COPY_STRING);
-        list_add(operandos,strtoul(traduccion[1],NULL,10));
+        list_add(operandos,(void*)strtoul(traduccion[1],NULL,10));
 	}
     if(string_equals_ignore_case(traduccion[0], "WAIT"))
 	{
@@ -182,52 +182,52 @@ t_list *decode(char* instruccion)
     if(string_equals_ignore_case(traduccion[0], "SIGNAL"))
 	{
 		list_add(operandos,(void*)SIGNAL);
-		list_add(operandos,traduccion[1]);
+		list_add(operandos,(void*)traduccion[1]);
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_GEN_SLEEP"))
 	{
         list_add(operandos,(void*)IO_GEN_SLEEP);
-		list_add(operandos,traduccion[1]);
+		list_add(operandos,(void*)traduccion[1]);
 		list_add(operandos,atoi(traduccion[2]));
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_STDIN_READ"))
 	{
         list_add(operandos,(void*)IO_STDIN_READ);
-		list_add(operandos,traduccion[1]);
+		list_add(operandos,(void*)traduccion[1]);
 		list_add(operandos,stringAregistro(traduccion[2]));
         list_add(operandos,stringAregistro(traduccion[3]));
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_STDOUT_WRITE"))
 	{
         list_add(operandos,(void*)IO_STDOUT_WRITE);
-		list_add(operandos,traduccion[1]);
+		list_add(operandos,(void*)traduccion[1]);
 		list_add(operandos,stringAregistro(traduccion[2]));
         list_add(operandos,stringAregistro(traduccion[3]));
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_FS_CREATE"))
 	{
         list_add(operandos,(void*)IO_FS_CREATE);
-		list_add(operandos,traduccion[1]);
-		list_add(operandos,traduccion[2]);
+		list_add(operandos,(void*)traduccion[1]);
+		list_add(operandos,(void*)traduccion[2]);
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_FS_DELETE"))
 	{
         list_add(operandos,(void*)IO_FS_DELETE);
-		list_add(operandos,traduccion[1]);
-		list_add(operandos,traduccion[2]);
+		list_add(operandos,(void*)traduccion[1]);
+		list_add(operandos,(void*)traduccion[2]);
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_FS_TRUNCATE"))
 	{
         list_add(operandos,(void*)IO_FS_TRUNCATE);
-		list_add(operandos,traduccion[1]);
-		list_add(operandos,traduccion[2]);
+		list_add(operandos,(void*)traduccion[1]);
+		list_add(operandos,(void*)traduccion[2]);
         list_add(operandos,stringAregistro(traduccion[3]));
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_FS_WRITE"))
 	{
         list_add(operandos,(void*)IO_FS_WRITE);
-		list_add(operandos,traduccion[1]);
-		list_add(operandos,traduccion[2]);
+		list_add(operandos,(void*)traduccion[1]);
+		list_add(operandos,(void*)traduccion[2]);
         list_add(operandos,stringAregistro(traduccion[3]));
         list_add(operandos,stringAregistro(traduccion[4]));
         list_add(operandos,stringAregistro(traduccion[5]));
@@ -236,8 +236,8 @@ t_list *decode(char* instruccion)
     if(string_equals_ignore_case(traduccion[0], "IO_FS_READ"))
 	{
         list_add(operandos,(void*)IO_FS_READ);
-		list_add(operandos,traduccion[1]);
-		list_add(operandos,traduccion[2]);
+		list_add(operandos,(void*)traduccion[1]);
+		list_add(operandos,(void*)traduccion[2]);
         list_add(operandos,stringAregistro(traduccion[3]));
         list_add(operandos,stringAregistro(traduccion[4]));
         list_add(operandos,stringAregistro(traduccion[5]));
@@ -296,6 +296,7 @@ void *stringAregistro(char* registro)
 	{
 		return &DI;
 	}
+    return NULL;
 }
 
 void execute(t_list *instruccion)
