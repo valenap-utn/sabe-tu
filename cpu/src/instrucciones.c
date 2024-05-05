@@ -3,7 +3,7 @@
 
 void set(void* registro, int valor)
 {
-    *(int*)registro = valor;
+    *(uint32_t*)registro = valor;
 }
 
 void mov_in(void* registro_datos,void* registro_direccion)
@@ -18,17 +18,17 @@ void mov_out(void* registro_datos,void* registro_direccion)
 
 void sum(void* destino,void* origen)
 {
-    *(int*)destino += *(int*)origen;
+    *(uint32_t*)destino += *(uint32_t*)origen;
 }
 
 void sub(void* destino,void* origen)
 {
-    *(int*)destino -= *(int*)origen;
+    *(uint32_t*)destino -= *(uint32_t*)origen;
 }
 
 void jnz(void* registro,uint32_t ins)
 {
-    if(*(int*)registro == 0)PC = ins;
+    if(*(uint32_t*)registro == 0)PC = ins;
 }
 
 void resize(int tamanio)
@@ -58,7 +58,7 @@ void io_gen_sleep(char* interfaz,int unidad_trabajo)
     agregar_a_paquete(paquete,&i,sizeof(int));
     agregar_a_paquete(paquete,interfaz,string_length(interfaz));
     agregar_a_paquete(paquete,(void*)unidad_trabajo,sizeof(int));
-    sysCall = false;
+    sysCall = true;
 }
 
 void io_stdin_read(char* interfaz,void* registro_direccion,void* registro_tamanio)

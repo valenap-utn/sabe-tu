@@ -45,8 +45,6 @@ void eliminar_paquete(t_paquete* paquete);
 //
 // cosas agregadas
 //
-void handshake(int conexion);
-int conectar(char* puerto,char* ip);
 //
 
 
@@ -63,6 +61,6 @@ void recibir_mensaje(int);
 int recibir_operacion(int);
 
 void handshake(int conexion);
-int conectar(char* puerto,char* ip);
+int conectar(char* puerto,char* ip,t_config* config);
 
 #endif /* UTILS_H_ */

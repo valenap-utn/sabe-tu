@@ -25,9 +25,38 @@ enum conucicacion_cpu
     SALIR
 };
 
+enum comunicacion_io_tipos{
+    GENERICA,
+    STDIN,
+    STDOUT,
+    DIALFS
+};
+
+enum comunicacion_io_ins{
+    IO_GEN_SLEEP,
+    IO_STDIN_READ,
+    IO_STDOUT_WRITE,    
+    IO_FS_TRUNCATE,
+    IO_FS_CREATE,
+    IO_FS_DELETE,
+    IO_FS_READ,
+    IO_FS_WRITE
+};
+
+struct interfaz{
+    char* nombre;
+    int tipo;
+    bool libre;
+    int conexion;
+};
+
+
 t_list *ready;
 t_list *new;
 t_list *blocked;
+
+sem_t mutex_listas;
+
 
 PCB *execute;
 void planFIFO(void);

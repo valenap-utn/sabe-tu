@@ -17,7 +17,6 @@ int main(int argc, char* argv[]) {
 
     iniciar_planificaciones();
     int server_fd = iniciar_servidor();
-    log_info(logger,"hola soy el kernel y funciono");
 	conexion_I_O = esperar_cliente(server_fd);
     {
         int i;
@@ -144,7 +143,7 @@ void interrupcionesRR(PCB proceso)
 	// pthread_mutex_lock(&para_frenar);
 	// pthread_mutex_unlock(&para_frenar);
     int i = proceso.pid;
-	usleep(proceso.quantum);
+	usleep(proceso.quantum*1000);
     if(execute!=NULL)
 	{	
 		if(i == execute->pid)

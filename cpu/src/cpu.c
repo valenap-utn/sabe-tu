@@ -13,7 +13,7 @@ uint32_t EDX;
 uint32_t SI;
 uint32_t DI;
 
-bool sysCall = true;
+bool sysCall = false;
 
 t_paquete* paquete;
 
@@ -53,12 +53,13 @@ void instrucciones()
     while(1)
     {
         actualizar_registros(conexion_kernel);
-        while(interrupcion && sysCall)
+        while(interrupcion && !sysCall)
         {
             char* instruccion = fetch(conexion_memoria);
             t_list * ins = decode(instruccion);
             execute(ins);
         }
+        interrupcion = false;
         devolver_contexto(conexion_kernel);
     }
 }
@@ -304,61 +305,61 @@ void execute(t_list *instruccion)
     switch((int)list_remove(instruccion,0))
     {
         case SET:
-
+            set(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case SUM:
-
+            sum(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case SUB:
-
+            sub(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case JNZ:
-
+            jnz(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case MOV_OUT:
-
+            mov_out(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case MOV_IN:
-
+            mov_in(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case RESIZE:
-
+            resize(list_remove(instruccion,0));
         break;
         case COPY_STRING:
-
+            copy_string(list_remove(instruccion,0));
         break;
         case WAIT:
-
+            wait(list_remove(instruccion,0));
         break;
         case SIGNAL:
-
+            s1gnal(list_remove(instruccion,0));
         break;
         case IO_GEN_SLEEP:
-
+            io_gen_sleep(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case IO_STDIN_READ:
-
+            io_stdin_read(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case IO_STDOUT_WRITE:
-
+            io_stdout_write(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case IO_FS_CREATE:
-
+            io_fs_create(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case IO_FS_DELETE:
-
+            io_fs_delete(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case IO_FS_READ:
-
+            io_fs_read(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case IO_FS_WRITE:
-
+            io_fs_write(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case IO_FS_TRUNCATE:
-
+            io_fs_truncate(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case EXIT:
-
+            salir();
         break;
         default:
             log_error(logger,"error, instruccion desconocida");
