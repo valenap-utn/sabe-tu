@@ -42,6 +42,6 @@ void comunicacion_cpu(int conexion);
 void comunicacion_kernel(int conexion);
 void comunicacion_io(int conexion);
 struct proceso *guardar_proceso(int conexion);
-bool cmpProcesoId(proceso *p);
+bool cmpProcesoId(void *p);
 
 #endif

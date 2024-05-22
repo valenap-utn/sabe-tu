@@ -48,8 +48,18 @@ struct interfaz{
     int tipo;
     bool libre;
     int conexion;
+    t_list* cola;
+    sem_t trigger;
 };
 
+struct cola_de_operaciones{
+    PCB* pcb;
+    int operacion;
+    void* parametro;
+};
+
+typedef struct interfaz interfaz;
+//typedef struct cola_de_operaciones cola_de_operaciones;
 
 t_list *ready;
 t_list *new;
@@ -59,12 +69,20 @@ sem_t mutex_listas;
 
 
 PCB *execute;
+
+void eliminar_interfaz(interfaz* i);
+void desbloquearProceso(PCB* proceso);
+
+
 void planFIFO(void);
 void planRR(void);
 void interrupcionesRR(PCB proceso);
 t_list* enviar_al_CPU(PCB* a_ejecutar);
 void iniciar_planificaciones();
 void atender_syscall(t_list* lista);
-
-
+void operaciones_de_interfaz(interfaz* i);
+interfaz* encontrarInterfaz(char* nombre,int tipo);
+void exit_execute();
+void bloquear_execute(char* nombre);
+void memoria_liberar_proceso(int pid);
 #endif

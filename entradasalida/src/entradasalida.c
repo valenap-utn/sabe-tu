@@ -2,74 +2,76 @@
 
 
 int main(int argc, char* argv[]) {
+    
     int conexion_memoria;
 
-    config = config_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/entradasalida/io.config");
-    logger = log_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/entradasalida/entradasalida.log","ENTRADASALIDA",1,LOG_LEVEL_INFO);
+
+    char *con = string_new();
+    string_append(&con,"entradasalida/");
+    string_append(&con, argv[0]);
+    string_append(&con,".config");
+    config = config_create(con);
+    char *log = string_new();
+    string_append(&log,"entradasalida/");
+    string_append(&log,argv[0]);
+    logger = log_create(log,"ENTRADASALIDA",1,LOG_LEVEL_INFO);
 
 
     conexion_memoria = conectar("PUERTO_MEMORIA","IP_MEMORIA",config);
     
     // se crea una interfaz
-    
-    // PREGUNTAS (para no olvidarnos)
-    // Que es lo que conecta las I/O con el Kernel?
-    // Como se inician las I/O? Se inician? ahre 
-
-    interfaz i;
-    
-	while (1) {
-   	pthread_t thread;
-
-  	pthread_create(&thread,
-                  NULL,
-                  (void*) inter,
-                  &i);
-	pthread_detach(thread);
-	}
-
+    inter(argv[0]);
     return 0;
 }
 
-void inter(interfaz *inter)
+void inter(char *nombre)
 {
-    int conexion_kernel = conectar("PUERTO_KERNEL","IP_KERNEL",&inter->configuracion);
-    int tipo = tipoInter(config_get_string_value(&inter->configuracion,"TIPO_INTERFAZ"));
+    char* nombreBis = string_new();
+    string_append(&nombreBis,nombre);
+    int conexion_kernel = conectar("PUERTO_KERNEL","IP_KERNEL",config);
+    handshake(conexion_kernel);
+    int tipo = tipoInter(config_get_string_value(config,"TIPO_INTERFAZ"));
+    int largoNombre = string_length(nombreBis);
     send(conexion_kernel,&tipo,sizeof(int),0);
-    send(conexion_kernel,inter->nombre,sizeof(char)*20,0);
+    send(conexion_kernel,&largoNombre,sizeof(int),0);
+    send(conexion_kernel,nombre,sizeof(char)*20,0);
     int peticion;
-    recv(conexion_kernel,&peticion,sizeof(int),MSG_WAITALL);
-    switch(peticion)
+    
+    while(1)
     {
-        case IO_GEN_SLEEP:
-            int cantidad;
-            recv(conexion_kernel,&cantidad,sizeof(int),MSG_WAITALL);
-            usleep(config_get_int_value(&inter->configuracion,"TIEMPO_UNIDAD_TRABAJO")*cantidad*1000);
+        recv(conexion_kernel,&peticion,sizeof(int),MSG_WAITALL);
+        switch(peticion)
+        {
+            case IO_GEN_SLEEP:
+                int cantidad;
+                recv(conexion_kernel,&cantidad,sizeof(int),MSG_WAITALL);
+                usleep(config_get_int_value(config,"TIEMPO_UNIDAD_TRABAJO")*cantidad*1000);
 
-            send(conexion_kernel,&cantidad,sizeof(int),0);
-        break;
-        case IO_STDIN_READ:
-        
-        break;
-        case IO_STDOUT_WRITE:
-        
+                send(conexion_kernel,&cantidad,sizeof(int),0);
+            break;
+            case IO_STDIN_READ:
+            
+            break;
+            case IO_STDOUT_WRITE:
+            
 
-        break;
-        case IO_FS_TRUNCATE:
-        
-        break;
-        case IO_FS_CREATE:
-        
-        break;
-        case IO_FS_DELETE:
-        
-        break;
-        case IO_FS_READ:
-        
-        break;
-        case IO_FS_WRITE:
-        
-        break;
+            break;
+            case IO_FS_TRUNCATE:
+            
+            break;
+            case IO_FS_CREATE:
+            
+            break;
+            case IO_FS_DELETE:
+            
+            break;
+            case IO_FS_READ:
+            
+            break;
+            case IO_FS_WRITE:
+            
+            break;
+        }
     }
 }
 

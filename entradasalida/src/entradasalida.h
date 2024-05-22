@@ -7,12 +7,6 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-struct interfaz
-{
-    char* nombre;
-    t_config configuracion;
-};
-
 enum comunicacion_kernel_tipos{
     GENERICA,
     STDIN,
@@ -33,6 +27,6 @@ enum comunicacion_kernel_ins{
 typedef struct interfaz interfaz;
 
 
-void inter(interfaz *inter);
+void inter(char *nombre);
 int tipoInter(char* s);
 #endif 

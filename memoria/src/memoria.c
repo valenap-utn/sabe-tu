@@ -64,7 +64,7 @@ void comunicacion_cpu(int conexion)
     }
 }
 
-bool cmpProcesoId(proceso *p){return p->pid == pid;}
+bool cmpProcesoId(void *p){return ((proceso *)p)->pid == pid;}
 
 
 void comunicacion_kernel(int conexion)
@@ -80,7 +80,14 @@ void comunicacion_kernel(int conexion)
             guardar_proceso(conexion);
         break;
         case FINALIZACION:
+            
+            recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+        
+            proceso *p = list_remove_by_condition(procesos,cmpProcesoId);
 
+            list_destroy_and_destroy_elements(p->instrucciones,free);
+            free(p->nombre);
+            free(p);
         break;
         case AJUSTAR:
 
