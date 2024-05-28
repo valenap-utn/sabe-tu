@@ -54,6 +54,11 @@ void actualizar_registros(int conexion);
 void devolver_contexto(int conexion);
 char* fetch(int conexion);
 t_list *decode(char* instruccion);
+void list_add_strAReg1_strtoul2(t_list* operandos, char* traduccion1, char* traduccion2);
+void list_add_strAReg_1y2(t_list* operandos, char* traduccion1, char* traduccion2);
+void list_add_trad1_strAReg2y3(t_list* operandos, char* traduccion1, char* traduccion2, char* traduccion3);
+void list_add_trad1y2(t_list* operandos, char* traduccion1, char* traduccion2);
+void list_add_strAReg34y5(t_list* operandos, char* traduccion3, char* traduccion4, char* traduccion5);
 void *stringAregistro(char* registro);
 void execute(t_list *instruccion);
 

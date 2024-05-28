@@ -123,47 +123,42 @@ char* fetch(int conexion)
 }
 
 t_list *decode(char* instruccion)
-{
+{   
     char* instruccion_separada = string_new();
 	string_append(&instruccion_separada, instruccion);
 	char* separador = " ";
 	char **traduccion = string_split(instruccion_separada, separador);
 	t_list *operandos= list_create();
+
 	if (string_equals_ignore_case(traduccion[0], "SET"))
 	{
         list_add(operandos,(void*)SET);
-		list_add(operandos, stringAregistro(traduccion[1]));
-		list_add(operandos,(void*)strtoul(traduccion[2],NULL,10));
+        list_add_strAReg1_strtoul2(operandos, traduccion[1], traduccion[2]);
 	}
 	if (string_equals_ignore_case(traduccion[0], "SUM")) 
 	{
         list_add(operandos,(void*)SUM);
-		list_add(operandos,stringAregistro(traduccion[1]));
-		list_add(operandos, stringAregistro(traduccion[2]));
+        list_add_strAReg_1y2(operandos, traduccion[1], traduccion[2]);
 	}
 	if(string_equals_ignore_case(traduccion[0], "SUB"))
 	{
         list_add(operandos,(void*)SUB);
-		list_add(operandos,stringAregistro(traduccion[1]));
-		list_add(operandos, stringAregistro(traduccion[2]));
+        list_add_strAReg_1y2(operandos, traduccion[1], traduccion[2]);
 	}
 	if (string_equals_ignore_case(traduccion[0], "MOV_IN"))
 	{
         list_add(operandos,(void*)MOV_IN);
-		list_add(operandos,stringAregistro(traduccion[1]));
-		list_add(operandos, stringAregistro(traduccion[2]));
+        list_add_strAReg_1y2(operandos, traduccion[1], traduccion[2]);
 	}
 	if(string_equals_ignore_case(traduccion[0], "MOV_OUT"))
 	{
         list_add(operandos,(void*)MOV_OUT);
-		list_add(operandos,stringAregistro(traduccion[1]));
-		list_add(operandos, stringAregistro(traduccion[2]));
+        list_add_strAReg_1y2(operandos, traduccion[1], traduccion[2]);
 	}
 	if(string_equals_ignore_case(traduccion[0], "JNZ"))
 	{
         list_add(operandos,(void*)JNZ);
-		list_add(operandos,stringAregistro(traduccion[1]));
-		list_add(operandos,(void*)strtoul(traduccion[2],NULL,10));
+        list_add_strAReg1_strtoul2(operandos, traduccion[1], traduccion[2]);
 	}
 	if(string_equals_ignore_case(traduccion[0], "RESIZE"))
 	{
@@ -194,64 +189,79 @@ t_list *decode(char* instruccion)
     if(string_equals_ignore_case(traduccion[0], "IO_STDIN_READ"))
 	{
         list_add(operandos,(void*)IO_STDIN_READ);
-		list_add(operandos,(void*)traduccion[1]);
-		list_add(operandos,stringAregistro(traduccion[2]));
-        list_add(operandos,stringAregistro(traduccion[3]));
+        list_add_trad1_strAReg2y3(operandos, traduccion[1], traduccion[2], traduccion[3]);
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_STDOUT_WRITE"))
 	{
         list_add(operandos,(void*)IO_STDOUT_WRITE);
-		list_add(operandos,(void*)traduccion[1]);
-		list_add(operandos,stringAregistro(traduccion[2]));
-        list_add(operandos,stringAregistro(traduccion[3]));
+        list_add_trad1_strAReg2y3(operandos, traduccion[1], traduccion[2], traduccion[3]);
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_FS_CREATE"))
 	{
         list_add(operandos,(void*)IO_FS_CREATE);
-		list_add(operandos,(void*)traduccion[1]);
-		list_add(operandos,(void*)traduccion[2]);
+        list_add_trad1y2(operandos, traduccion[1], traduccion[2]);
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_FS_DELETE"))
 	{
         list_add(operandos,(void*)IO_FS_DELETE);
-		list_add(operandos,(void*)traduccion[1]);
-		list_add(operandos,(void*)traduccion[2]);
+        list_add_trad1y2(operandos, traduccion[1], traduccion[2]);
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_FS_TRUNCATE"))
 	{
         list_add(operandos,(void*)IO_FS_TRUNCATE);
-		list_add(operandos,(void*)traduccion[1]);
-		list_add(operandos,(void*)traduccion[2]);
+        list_add_trad1y2(operandos, traduccion[1], traduccion[2]);
         list_add(operandos,stringAregistro(traduccion[3]));
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_FS_WRITE"))
 	{
         list_add(operandos,(void*)IO_FS_WRITE);
-		list_add(operandos,(void*)traduccion[1]);
-		list_add(operandos,(void*)traduccion[2]);
-        list_add(operandos,stringAregistro(traduccion[3]));
-        list_add(operandos,stringAregistro(traduccion[4]));
-        list_add(operandos,stringAregistro(traduccion[5]));
-
+        list_add_trad1y2(operandos, traduccion[1], traduccion[2]);
+        list_add_strAReg34y5(operandos, traduccion[3], traduccion[4], traduccion[5]);
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_FS_READ"))
 	{
         list_add(operandos,(void*)IO_FS_READ);
-		list_add(operandos,(void*)traduccion[1]);
-		list_add(operandos,(void*)traduccion[2]);
-        list_add(operandos,stringAregistro(traduccion[3]));
-        list_add(operandos,stringAregistro(traduccion[4]));
-        list_add(operandos,stringAregistro(traduccion[5]));
+        list_add_trad1y2(operandos, traduccion[1], traduccion[2]);
+        list_add_strAReg34y5(operandos, traduccion[3], traduccion[4], traduccion[5]);
 	}
     if(string_equals_ignore_case(traduccion[0], "EXIT"))
 	{
         list_add(operandos,(void*)EXIT);
 	}
+
     free(instruccion_separada);
     string_array_destroy(traduccion);
 	return operandos;
 }
 
+//PROPUESTA
+
+void list_add_strAReg1_strtoul2(t_list* operandos, char* traduccion1, char* traduccion2){
+    list_add(operandos, stringAregistro(traduccion1));
+	list_add(operandos,(void*)strtoul(traduccion2,NULL,10));
+} 
+
+void list_add_strAReg_1y2(t_list* operandos, char* traduccion1, char* traduccion2){
+    list_add(operandos,stringAregistro(traduccion1));
+	list_add(operandos, stringAregistro(traduccion2));
+} 
+
+void list_add_trad1_strAReg2y3(t_list* operandos, char* traduccion1, char* traduccion2, char* traduccion3){
+    list_add(operandos,(void*)traduccion1);
+    list_add(operandos,stringAregistro(traduccion2));
+    list_add(operandos,stringAregistro(traduccion3));
+} 
+
+void list_add_trad1y2(t_list* operandos, char* traduccion1, char* traduccion2){
+    list_add(operandos,(void*)traduccion1);
+	list_add(operandos,(void*)traduccion2);
+} 
+
+void list_add_strAReg34y5(t_list* operandos, char* traduccion3, char* traduccion4, char* traduccion5){
+    list_add(operandos,stringAregistro(traduccion3));
+    list_add(operandos,stringAregistro(traduccion4));
+    list_add(operandos,stringAregistro(traduccion5));
+} 
 
 void *stringAregistro(char* registro)
 {
