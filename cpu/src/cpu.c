@@ -315,7 +315,7 @@ void execute(t_list *instruccion)
     switch((int)list_remove(instruccion,0))
     {
         case SET:
-            set(list_remove(instruccion,0),list_remove(instruccion,0));
+            set(list_remove(instruccion,0),(uint32_t)list_remove(instruccion,0));
         break;
         case SUM:
             sum(list_remove(instruccion,0),list_remove(instruccion,0));
@@ -324,7 +324,7 @@ void execute(t_list *instruccion)
             sub(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case JNZ:
-            jnz(list_remove(instruccion,0),list_remove(instruccion,0));
+            jnz(list_remove(instruccion,0),(uint32_t)list_remove(instruccion,0));
         break;
         case MOV_OUT:
             mov_out(list_remove(instruccion,0),list_remove(instruccion,0));
@@ -333,7 +333,7 @@ void execute(t_list *instruccion)
             mov_in(list_remove(instruccion,0),list_remove(instruccion,0));
         break;
         case RESIZE:
-            resize(list_remove(instruccion,0));
+            resize((int)list_remove(instruccion,0));
         break;
         case COPY_STRING:
             copy_string(list_remove(instruccion,0));

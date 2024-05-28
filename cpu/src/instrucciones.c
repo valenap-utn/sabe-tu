@@ -1,7 +1,7 @@
 #include "instrucciones.h"
 
 
-void set(void* registro, int valor)
+void set(void* registro, uint32_t valor)
 {
     *(uint32_t*)registro = valor;
 }

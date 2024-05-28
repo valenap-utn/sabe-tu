@@ -4,6 +4,18 @@
     int conexion_cpu_dispatch;
     int conexion_cpu_interrupt;
     t_list* interfaces;
+    bool interrupcion = true;
+
+    pthread_mutex_t mutex_plani;
+
+    sem_t contador_new;
+    sem_t contador_ready;
+
+    sem_t espacio_en_colas;
+
+    t_dictionary* recursos;
+
+    sem_t mutex_listas_recursos;
 
 
 int main(int argc, char* argv[]) {
@@ -15,10 +27,20 @@ int main(int argc, char* argv[]) {
     new = list_create();
     blocked =list_create();
     interfaces = list_create();
+    readyQuantum = list_create();
+    recursos_por_proceso= list_create();
 
+
+    sem_init(&contador_new,0,0);
+    sem_init(&contador_ready,0,0);
+
+    sem_init(&contador_ready,0,config_get_int_value(config,"GRADO_MULTIPROGRAMACION"));
+
+
+    pthread_mutex_init(&mutex_plani,NULL);
     iniciar_planificaciones();
 
-
+    inicializar_recursos();
 
     conexion_memoria = conectar("PUERTO_MEMORIA","IP_MEMORIA","memoria");
     conexion_cpu_dispatch = conectar("PUERTO_CPU_DISPATCH","IP_CPU","cpu dispatch");
@@ -34,15 +56,19 @@ int main(int argc, char* argv[]) {
             PCB* pcb = iniciar_pcb(config_get_int_value(config,"QUANTUM"));
             paquete_a_memoria(comando[1],conexion_memoria,pcb->pid);
             list_add(new,pcb);
+
+            inicializar_recursos_del_proceso(pcb);
+
+            sem_post(&contador_new);
         break;
         case FINALIZAR_PROCESO:
 
         break;
         case INICIAR_PLANIFICACION:
-
+            pthread_mutex_unlock(&mutex_plani);
         break;
         case DETENER_PLANIFICACION:
-
+            pthread_mutex_lock(&mutex_plani);
         break;
         case MULTIPROGRAMACION:
 
@@ -68,13 +94,115 @@ void planFIFO()
 {
     while(1)
     {
-        sem_wait(&mutex_listas);
-        execute = list_remove(ready,0);
-        sem_post(&mutex_listas);
+        sem_wait(&contador_ready);
+
+        pthread_mutex_lock(&mutex_plani);
+        pthread_mutex_unlock(&mutex_plani);
+
+
+        sacarPrimerPCB();
 
         t_list* lista = enviar_al_CPU(execute);
         atender_syscall(lista);
     }
+}
+
+void planRR(void)
+{
+    while(1)
+    {
+        sem_wait(&contador_ready);
+
+        pthread_mutex_lock(&mutex_plani);
+        pthread_mutex_unlock(&mutex_plani);
+
+
+        sacarPrimerPCB();
+
+        pthread_t interrupciones;
+
+        pthread_create(&interrupciones,NULL,(void*)interrupcionesRR,execute);
+
+        t_list* lista = enviar_al_CPU(execute);
+        atender_syscall(lista);
+    }
+}
+
+
+void sacarPrimerPCB()
+{
+    if(interrupcion)
+    {
+        sem_wait(&mutex_listas);
+        execute = list_remove(ready,0);
+        sem_post(&mutex_listas);
+        interrupcion = false;
+    }
+}
+
+void planVRR()
+{
+    while(1)
+    {
+
+        sem_wait(&contador_ready);
+
+        pthread_mutex_lock(&mutex_plani);
+        pthread_mutex_unlock(&mutex_plani);
+        if(interrupcion)
+        {
+            if(list_is_empty(readyQuantum))
+            {
+                sem_wait(&mutex_listas);
+                execute = list_remove(ready,0);
+                sem_post(&mutex_listas);
+            }
+            else execute = list_remove(readyQuantum,0);
+
+            interrupcion = false;
+        }
+
+        pthread_t interrupciones;
+
+        t_temporal* quantum = temporal_create();
+        pthread_create(&interrupciones,NULL,(void*)interrupcionesRR,execute);
+
+
+        t_list* lista = enviar_al_CPU(execute);
+        atender_syscall(lista);
+
+        if(interrupcion)
+        {
+            execute->quantum -= temporal_gettime(quantum);
+            
+            sem_wait(&mutex_listas);
+            list_remove_element(ready,execute);
+            sem_post(&mutex_listas);
+
+            list_add(readyQuantum,execute); //lo ponemos en la de mayor prioridad 
+        }
+
+        temporal_destroy(quantum);
+    }
+}
+
+
+void planificacionLargoPlazo()
+{
+    while(1)
+	{
+		sem_wait(&espacio_en_colas);
+		sem_wait(&contador_new);
+
+
+		pthread_mutex_lock(&mutex_plani);
+		pthread_mutex_unlock(&mutex_plani);
+
+        struct PCB* pcb = list_remove(new,0);
+        list_add(ready,pcb);
+        log_info(logger,"PID: <%d> - Estado Anterior: <NEW> - Estado Actual: <READY>",pcb->pid);
+        sem_post(&contador_ready);
+	}
 }
 
 void controlar_interfaces()
@@ -161,27 +289,7 @@ void desbloquearProceso(struct PCB* proceso)
 	// sem_post(&hay_cosas_en_ready);
 }
 
-void planRR(void)
-{
-    while(1)
-    {
-        sem_wait(&mutex_listas);
-        execute = list_remove(ready,0);
-        sem_post(&mutex_listas);
-        pthread_t interrupciones;
-        pthread_create(&interrupciones,NULL,(void*)interrupcionesRR,execute);
 
-
-        t_list* lista = enviar_al_CPU(execute);
-        if(lista == NULL)
-        {
-            sem_wait(&mutex_listas);
-            list_add(ready,execute);
-            sem_post(&mutex_listas);
-        }
-        atender_syscall(lista);
-    }
-}
 
 t_list* enviar_al_CPU(PCB* a_ejecutar)
 {
@@ -224,6 +332,7 @@ void iniciar_planificaciones(void)
     string_append(&planificacion,config_get_string_value(config,"ALGORITMO_PLANIFICACION"));
     if(string_equals_ignore_case(planificacion,"fifo"))pthread_create(&cortoPlazo,NULL,(void*)planFIFO,NULL);
     if(string_equals_ignore_case(planificacion,"rr")) pthread_create(&cortoPlazo,NULL,(void*)planRR,NULL);
+    if(string_equals_ignore_case(planificacion,"vrr")) pthread_create(&cortoPlazo,NULL,(void*)planVRR,NULL);
 }
 
 void interrupcionesRR(PCB proceso)
@@ -240,6 +349,7 @@ void interrupcionesRR(PCB proceso)
             i = 0;
 			send(conexion_cpu_interrupt,&i,sizeof(int),0);
 			log_info(logger,"PID: <%d> - Desalojado por fin de Quantum",execute->pid);
+            interrupcion = true;
 		}
 	}
 }
@@ -247,6 +357,14 @@ void interrupcionesRR(PCB proceso)
 
 void atender_syscall(t_list* lista)
 {
+    char* nombre;
+    if(lista == NULL)
+    {
+        sem_wait(&mutex_listas);
+        list_add(ready,execute);
+        sem_post(&mutex_listas);
+        return;
+    }
     switch((int)list_get(lista,0))
     {
         case SALIR:
@@ -267,7 +385,91 @@ void atender_syscall(t_list* lista)
                 sem_post(&i->trigger);
             }
         break;
+        case ESPERAR:
+        nombre = (char*)list_remove(lista,0);
+		if(dictionary_has_key(recursos,nombre))
+		{
+			int instancias = (int)dictionary_get(recursos,nombre);
+			dictionary_put(recursos,nombre,(void*)--instancias);
+
+			sem_wait(&mutex_listas_recursos);
+            rec* recursos_del_execute = (rec*)list_find(recursos_por_proceso,encontrar_recursos_del_execute);
+			sem_post(&mutex_listas_recursos);
+
+			log_info(logger,"PID: <%d> - Wait: <%s> - Instancias: <%d>",execute->pid,nombre,instancias);
+			if(instancias < 0)
+			{
+                char* c = string_new();
+                string_append(&c,nombre);
+				recursos_del_execute->bloqueando = c;
+				bloquear_execute(nombre);
+			}
+			else
+			{
+			 	int instanciasE = (int)dictionary_get(recursos_del_execute->recursos,nombre);
+			 	dictionary_put(recursos_del_execute->recursos,nombre,(void*)++instanciasE);
+			}
+		}
+		else{
+			log_error(logger,"Finaliza el proceso <%d> - Motivo: <INVALID_RESOURCE>",execute->pid);
+			exit_execute();
+		}
+        break;
+        case SENIAL:
+        nombre = list_remove(lista,0);
+        sem_wait(&mutex_listas_recursos);
+        rec* recursos_del_execute = (rec*)list_find(recursos_por_proceso,encontrar_recursos_del_execute);
+        sem_post(&mutex_listas_recursos);
+		if((dictionary_has_key(recursos,nombre) && elProcesoTieneUnrecurso(recursos_del_execute,nombre)))
+		{
+			int instancias = dictionary_get(recursos,nombre);
+			dictionary_put(recursos,nombre,++instancias);
+			log_info(logger,"PID: <%d> - Signal: <%s> - Instancias: <%d>",execute->pid,nombre,instancias);
+
+            int instanciasE =dictionary_get(recursos_del_execute->recursos,nombre);
+            dictionary_put(recursos_del_execute->recursos,nombre,--instanciasE);
+
+			if(instancias >= 0)
+			{
+				// desbloqueamos al primer proceso que pide el recurso
+				liberar_procesos_bloqueados_por_recursos(nombre);
+			}
+		}
+		else{
+			log_error(logger,"Finaliza el proceso <%d> - Motivo: <INVALID_RESOURCE>",execute->pid);
+			memoria_liberar_proceso(execute->pid);
+			exit_execute();
+		}
+        break;
     }
+}
+
+void liberar_procesos_bloqueados_por_recursos(char* nombre)
+{
+
+    bool cmpRecurso(void * recurso)
+    {
+        return string_equals_ignore_case(((rec*)recurso)->bloqueando,nombre);
+    }
+
+    rec* recu = list_remove_by_condition(recursos_por_proceso,cmpRecurso);
+
+    free(recu->bloqueando);
+    recu->bloqueando = NULL;
+    int instanciasE =dictionary_get(recu->recursos,nombre);
+    dictionary_put(recu->recursos,nombre,++instanciasE);
+
+
+    desbloquearProceso(recu->pcb);
+}
+
+bool elProcesoTieneUnrecurso(rec *recu ,char* nombre)
+{
+    return (int)dictionary_get(recu->recursos,nombre) > 0;
+}
+bool encontrar_recursos_del_execute(void *r)
+{
+    return ((rec*)r)->pcb == execute;
 }
 
 void bloquear_execute(char* nombre)
@@ -303,7 +505,7 @@ void exit_execute()
 		// sacar_de_laMatriz(execute->PID);
         memoria_liberar_proceso(execute->pid);
 		free(execute);
-		// sem_post(&espacio_libre_en_colas);
+		sem_post(&espacio_en_colas);
 }
 
 void memoria_liberar_proceso(int pid)
@@ -312,4 +514,30 @@ void memoria_liberar_proceso(int pid)
 
     send(conexion_memoria,&i,sizeof(int),0);
     send(conexion_memoria,&pid,sizeof(int),0);
+}
+
+void inicializar_recursos(void)
+{
+	recursos = dictionary_create();
+	char** nombres_recursos = string_get_string_as_array(config_get_string_value(config,"RECURSOS"));
+	char** instancias = string_get_string_as_array(config_get_string_value(config,"INSTANCIAS_RECURSOS"));
+	for(int i=0; i < string_array_size(instancias);i++)
+	{
+		dictionary_put(recursos,nombres_recursos[i],atoi(instancias[i]));
+	}
+}
+
+void inicializar_recursos_del_proceso(PCB* pcb)
+{
+    rec* r = malloc(sizeof(rec));
+    r->pcb = pcb;
+    r->bloqueando = NULL;
+    t_dictionary* map_de_recursos = dictionary_create();
+	char** nombres_recursos = string_get_string_as_array(config_get_string_value(config,"RECURSOS"));
+    for(int i=0; i < string_array_size(nombres_recursos);i++)
+	{
+		dictionary_put(map_de_recursos,nombres_recursos[i],0);
+	}
+    r->recursos = map_de_recursos;
+    list_add(recursos_por_proceso,r);
 }

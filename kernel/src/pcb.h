@@ -24,7 +24,7 @@ enum comunicacion_con_memoria{
 struct PCB
 {
     int pid;
-    int quantum;
+    int64_t quantum;
     uint32_t PC;
     uint8_t AX;
     uint8_t  BX;

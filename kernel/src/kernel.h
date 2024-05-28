@@ -9,9 +9,12 @@
 #include <pcb.h>
 #include<pthread.h>
 #include<semaphore.h>
+#include<commons/temporal.h>
+#include<commons/collections/dictionary.h>
 
 enum conucicacion_cpu
 {
+    NULO,
     ESPERAR,
     SENIAL,
     DORMIR,
@@ -43,6 +46,13 @@ enum comunicacion_io_ins{
     IO_FS_WRITE
 };
 
+struct recursosYPCB{
+    PCB* pcb;
+    t_dictionary* recursos;
+    char* bloqueando;
+};
+
+typedef struct recursosYPCB rec;
 struct interfaz{
     char* nombre;
     int tipo;
@@ -64,11 +74,14 @@ typedef struct interfaz interfaz;
 t_list *ready;
 t_list *new;
 t_list *blocked;
+t_list *readyQuantum;
 
+t_list *recursos_por_proceso;
 sem_t mutex_listas;
 
 
 PCB *execute;
+
 
 void eliminar_interfaz(interfaz* i);
 void desbloquearProceso(PCB* proceso);
@@ -85,4 +98,11 @@ interfaz* encontrarInterfaz(char* nombre,int tipo);
 void exit_execute();
 void bloquear_execute(char* nombre);
 void memoria_liberar_proceso(int pid);
+void inicializar_recursos(void);
+void inicializar_recursos_del_proceso(PCB* pcb);
+bool elProcesoTieneUnrecurso(rec *recu ,char* nombre);
+void sacarPrimerPCB();
+bool encontrar_recursos_del_execute(void *r);
+void liberar_procesos_bloqueados_por_recursos(char* nombre);
+
 #endif

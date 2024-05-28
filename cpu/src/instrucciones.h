@@ -38,7 +38,7 @@ extern bool sysCall;
 
 extern t_paquete* paquete;
 
-void set(void* registro, int valor);
+void set(void* registro, uint32_t valor);
 void mov_in(void* registro_datos,void* registro_direccion);
 void mov_out(void* registro_datos,void* registro_direccion);
 void sum(void* destino,void* origen);
