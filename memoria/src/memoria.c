@@ -15,12 +15,15 @@ int main(int argc, char* argv[]) {
     responder_handshake(conexion_cpu);
     int conexion_kernel = esperar_cliente(server_fd);
     responder_handshake(conexion_kernel);
-    int conexion_io = esperar_cliente(server_fd);
-    responder_handshake(conexion_io);
+    // int conexion_io = esperar_cliente(server_fd);
+    // responder_handshake(conexion_io);
 
-    pthread_create(&cpu,NULL,(void*)comunicacion_cpu,&conexion_cpu);
-    pthread_create(&kernel,NULL,(void*)comunicacion_kernel,&conexion_kernel);
-    pthread_create(&io,NULL,(void*)comunicacion_io,&conexion_io);
+    pthread_create(&cpu,NULL,(void*)comunicacion_cpu,conexion_cpu);
+    pthread_create(&kernel,NULL,(void*)comunicacion_kernel,conexion_kernel);
+    // pthread_create(&io,NULL,(void*)comunicacion_io,&conexion_io);
+    
+    pthread_detach(cpu);
+    pthread_join(kernel,NULL);
     return 0;
 }
 
@@ -109,7 +112,9 @@ struct proceso *guardar_proceso(int conexion)
     int tamanio;
     proceso* p = malloc(sizeof(proceso));
     recv(conexion,&tamanio,sizeof(int),MSG_WAITALL);
+    p->instrucciones = list_create();
     p->nombre = malloc(sizeof(char)*tamanio);
+    printf("%d",tamanio);
     recv(conexion,p->nombre,sizeof(char)*tamanio,MSG_WAITALL);
     recv(conexion,&p->pid,sizeof(int),MSG_WAITALL);
 	char *linea = malloc(sizeof(char[50]));

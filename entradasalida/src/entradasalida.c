@@ -1,11 +1,10 @@
 #include "entradasalida.h"
 
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]){
     
     int conexion_memoria;
-
-
+    
     char *con = string_new();
     string_append(&con,"entradasalida/");
     string_append(&con, argv[0]);

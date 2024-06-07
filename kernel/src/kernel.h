@@ -104,5 +104,8 @@ bool elProcesoTieneUnrecurso(rec *recu ,char* nombre);
 void sacarPrimerPCB();
 bool encontrar_recursos_del_execute(void *r);
 void liberar_procesos_bloqueados_por_recursos(char* nombre);
+void loggear_lista(t_list *lista);
+
+
 
 #endif

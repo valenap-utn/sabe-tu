@@ -34,7 +34,9 @@ int main(int argc, char* argv[]) {
     sem_init(&contador_new,0,0);
     sem_init(&contador_ready,0,0);
 
-    sem_init(&contador_ready,0,config_get_int_value(config,"GRADO_MULTIPROGRAMACION"));
+    sem_init(&mutex_listas,0,1);
+
+    sem_init(&espacio_en_colas,0,config_get_int_value(config,"GRADO_MULTIPROGRAMACION"));
 
 
     pthread_mutex_init(&mutex_plani,NULL);
@@ -56,10 +58,11 @@ int main(int argc, char* argv[]) {
             PCB* pcb = iniciar_pcb(config_get_int_value(config,"QUANTUM"));
             paquete_a_memoria(comando[1],conexion_memoria,pcb->pid);
             list_add(new,pcb);
-
+            log_info(logger,"Se crea el proceso <%d> en NEW",pcb->pid);
+            
             inicializar_recursos_del_proceso(pcb);
-
             sem_post(&contador_new);
+
         break;
         case FINALIZAR_PROCESO:
 
@@ -198,11 +201,30 @@ void planificacionLargoPlazo()
 		pthread_mutex_lock(&mutex_plani);
 		pthread_mutex_unlock(&mutex_plani);
 
+        sem_wait(&mutex_listas);
         struct PCB* pcb = list_remove(new,0);
         list_add(ready,pcb);
+        sem_post(&mutex_listas);
+
         log_info(logger,"PID: <%d> - Estado Anterior: <NEW> - Estado Actual: <READY>",pcb->pid);
+
+        loggear_lista(ready);
         sem_post(&contador_ready);
 	}
+}
+
+void loggear_lista(t_list *lista)
+{
+    char* lista_string = string_new();
+    string_append(&lista_string,"Cola Ready: [");
+    for(int i = 0;i < list_size(lista);i++)
+    {
+        PCB* pcb = list_get(lista,i);
+        string_append(&lista_string,string_itoa(pcb->pid));
+        string_append(&lista_string,",");
+    }
+    string_append(&lista_string,"]");
+    log_info(logger,"%s",lista_string);
 }
 
 void controlar_interfaces()
@@ -327,12 +349,14 @@ t_list* enviar_al_CPU(PCB* a_ejecutar)
 void iniciar_planificaciones(void)
 {
     pthread_t cortoPlazo;
-
+    pthread_t largoPlazo;
     char *planificacion = string_new();
     string_append(&planificacion,config_get_string_value(config,"ALGORITMO_PLANIFICACION"));
     if(string_equals_ignore_case(planificacion,"fifo"))pthread_create(&cortoPlazo,NULL,(void*)planFIFO,NULL);
     if(string_equals_ignore_case(planificacion,"rr")) pthread_create(&cortoPlazo,NULL,(void*)planRR,NULL);
     if(string_equals_ignore_case(planificacion,"vrr")) pthread_create(&cortoPlazo,NULL,(void*)planVRR,NULL);
+    pthread_create(&largoPlazo,NULL,(void*)planificacionLargoPlazo,NULL);
+
 }
 
 void interrupcionesRR(PCB proceso)
@@ -503,9 +527,12 @@ void exit_execute()
 {
     	// desbloquear_todo(execute);
 		// sacar_de_laMatriz(execute->PID);
+        int pid = execute->pid;
         memoria_liberar_proceso(execute->pid);
 		free(execute);
 		sem_post(&espacio_en_colas);
+        log_info(logger,"Finaliza el proceso <%d> - Motivo: <SUCCESS / INVALID_RESOURCE / INVALID_INTERFACE / OUT_OF_MEMORY / INTERRUPTED_BY_USER>",pid);
+
 }
 
 void memoria_liberar_proceso(int pid)

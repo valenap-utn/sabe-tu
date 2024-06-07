@@ -55,7 +55,7 @@ void io_gen_sleep(char* interfaz,int unidad_trabajo)
 {
     int i = DORMIR;
     paquete = crear_paquete();
-    agregar_a_paquete(paquete,&i,sizeof(int));
+    agregar_a_paquete(paquete,i,sizeof(int));
     agregar_a_paquete(paquete,interfaz,string_length(interfaz));
     agregar_a_paquete(paquete,(void*)unidad_trabajo,sizeof(int));
     sysCall = true;
@@ -98,7 +98,10 @@ void io_fs_read(char* interfaz,void* nombre_archivo,void* registro_direccion,voi
 
 void salir()
 {
-    //
+    int i = SALIR;
+    paquete = crear_paquete();
+    agregar_a_paquete(paquete,i,sizeof(int));
+    sysCall = true;
 }
 
 

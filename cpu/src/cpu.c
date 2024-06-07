@@ -55,11 +55,14 @@ void instrucciones()
         actualizar_registros(conexion_kernel);
         while(interrupcion && !sysCall)
         {
-            char* instruccion = fetch(conexion_memoria);
+            char* instruccion = string_replace(fetch(conexion_memoria),"\n","");
             t_list * ins = decode(instruccion);
+            log_info(logger,"PID: <%d> - Ejecutando: <%s>",PID,instruccion);
             execute(ins);
+            PC++;
         }
-        interrupcion = false;
+        interrupcion = 1;
+        sysCall = false;
         devolver_contexto(conexion_kernel);
     }
 }
@@ -111,6 +114,7 @@ void devolver_contexto(int conexion)
 
 char* fetch(int conexion)
 {
+    log_info(logger,"PID: <%d> - FETCH - Program Counter: <%u>",PID,PC);
 	int i = INSTRUCCION;
     send(conexion,&i,sizeof(int),0);
     send(conexion,&PID,sizeof(int),0);
@@ -224,7 +228,7 @@ t_list *decode(char* instruccion)
         list_add_trad1y2(operandos, traduccion[1], traduccion[2]);
         list_add_strAReg34y5(operandos, traduccion[3], traduccion[4], traduccion[5]);
 	}
-    if(string_equals_ignore_case(traduccion[0], "EXIT"))
+    if(string_contains(traduccion[0], "EXIT"))
 	{
         list_add(operandos,(void*)EXIT);
 	}
@@ -315,22 +319,22 @@ void execute(t_list *instruccion)
     switch((int)list_remove(instruccion,0))
     {
         case SET:
-            set(list_remove(instruccion,0),(uint32_t)list_remove(instruccion,0));
+            set(list_remove(instruccion,0),(uint32_t)list_remove(instruccion,1));
         break;
         case SUM:
-            sum(list_remove(instruccion,0),list_remove(instruccion,0));
+            sum(list_remove(instruccion,0),list_remove(instruccion,1));
         break;
         case SUB:
-            sub(list_remove(instruccion,0),list_remove(instruccion,0));
+            sub(list_remove(instruccion,0),list_remove(instruccion,1));
         break;
         case JNZ:
-            jnz(list_remove(instruccion,0),(uint32_t)list_remove(instruccion,0));
+            jnz(list_remove(instruccion,0),(uint32_t)list_remove(instruccion,1));
         break;
         case MOV_OUT:
-            mov_out(list_remove(instruccion,0),list_remove(instruccion,0));
+            mov_out(list_remove(instruccion,0),list_remove(instruccion,1));
         break;
         case MOV_IN:
-            mov_in(list_remove(instruccion,0),list_remove(instruccion,0));
+            mov_in(list_remove(instruccion,0),list_remove(instruccion,1));
         break;
         case RESIZE:
             resize((int)list_remove(instruccion,0));
@@ -345,28 +349,28 @@ void execute(t_list *instruccion)
             s1gnal(list_remove(instruccion,0));
         break;
         case IO_GEN_SLEEP:
-            io_gen_sleep(list_remove(instruccion,0),list_remove(instruccion,0));
+            io_gen_sleep(list_remove(instruccion,0),list_remove(instruccion,1));
         break;
         case IO_STDIN_READ:
-            io_stdin_read(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
+            io_stdin_read(list_remove(instruccion,0),list_remove(instruccion,1),list_remove(instruccion,2));
         break;
         case IO_STDOUT_WRITE:
-            io_stdout_write(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
+            io_stdout_write(list_remove(instruccion,0),list_remove(instruccion,1),list_remove(instruccion,2));
         break;
         case IO_FS_CREATE:
-            io_fs_create(list_remove(instruccion,0),list_remove(instruccion,0));
+            io_fs_create(list_remove(instruccion,0),list_remove(instruccion,1));
         break;
         case IO_FS_DELETE:
-            io_fs_delete(list_remove(instruccion,0),list_remove(instruccion,0));
+            io_fs_delete(list_remove(instruccion,0),list_remove(instruccion,1));
         break;
         case IO_FS_READ:
-            io_fs_read(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
+            io_fs_read(list_remove(instruccion,0),list_remove(instruccion,1),list_remove(instruccion,2),list_remove(instruccion,3),list_remove(instruccion,4));
         break;
         case IO_FS_WRITE:
-            io_fs_write(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
+            io_fs_write(list_remove(instruccion,0),list_remove(instruccion,1),list_remove(instruccion,2),list_remove(instruccion,3),list_remove(instruccion,4));
         break;
         case IO_FS_TRUNCATE:
-            io_fs_truncate(list_remove(instruccion,0),list_remove(instruccion,0),list_remove(instruccion,0));
+            io_fs_truncate(list_remove(instruccion,0),list_remove(instruccion,1),list_remove(instruccion,2));
         break;
         case EXIT:
             salir();
