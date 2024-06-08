@@ -1,6 +1,6 @@
 #include "instrucciones.h"
 
-
+int sCall;
 void set(void* registro, uint32_t valor)
 {
     *(uint32_t*)registro = valor;
@@ -53,9 +53,9 @@ void s1gnal(void* recurso)
 
 void io_gen_sleep(char* interfaz,int unidad_trabajo)
 {
-    int i = DORMIR;
+    sCall = DORMIR;
     paquete = crear_paquete();
-    agregar_a_paquete(paquete,i,sizeof(int));
+    agregar_a_paquete(paquete,&sCall,sizeof(int));
     agregar_a_paquete(paquete,interfaz,string_length(interfaz));
     agregar_a_paquete(paquete,(void*)unidad_trabajo,sizeof(int));
     sysCall = true;
@@ -98,9 +98,9 @@ void io_fs_read(char* interfaz,void* nombre_archivo,void* registro_direccion,voi
 
 void salir()
 {
-    int i = SALIR;
+    sCall = SALIR;
     paquete = crear_paquete();
-    agregar_a_paquete(paquete,i,sizeof(int));
+    agregar_a_paquete(paquete,&sCall,sizeof(int));
     sysCall = true;
 }
 

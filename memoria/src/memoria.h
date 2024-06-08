@@ -40,7 +40,7 @@ pthread_t kernel;
 
 void comunicacion_cpu(int conexion);
 void comunicacion_kernel(int conexion);
-void comunicacion_io(int conexion);
+void comunicacion_io(void);
 struct proceso *guardar_proceso(int conexion);
 bool cmpProcesoId(void *p);
 

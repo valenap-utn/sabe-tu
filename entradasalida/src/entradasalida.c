@@ -6,13 +6,12 @@ int main(int argc, char* argv[]){
     int conexion_memoria;
     
     char *con = string_new();
-    string_append(&con,"entradasalida/");
     string_append(&con, argv[0]);
     string_append(&con,".config");
     config = config_create(con);
     char *log = string_new();
-    string_append(&log,"entradasalida/");
     string_append(&log,argv[0]);
+    string_append(&log,".log");
     logger = log_create(log,"ENTRADASALIDA",1,LOG_LEVEL_INFO);
 
 
@@ -33,7 +32,7 @@ void inter(char *nombre)
     int largoNombre = string_length(nombreBis);
     send(conexion_kernel,&tipo,sizeof(int),0);
     send(conexion_kernel,&largoNombre,sizeof(int),0);
-    send(conexion_kernel,nombre,sizeof(char)*20,0);
+    send(conexion_kernel,nombre,sizeof(char)*largoNombre,0);
     int peticion;
     
     while(1)

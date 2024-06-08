@@ -4,7 +4,7 @@
     int conexion_cpu_dispatch;
     int conexion_cpu_interrupt;
     t_list* interfaces;
-    bool interrupcion = true;
+    bool cambioDeProceso = true;
 
     pthread_mutex_t mutex_plani;
 
@@ -43,6 +43,10 @@ int main(int argc, char* argv[]) {
     iniciar_planificaciones();
 
     inicializar_recursos();
+
+    pthread_t inter;
+
+    pthread_create(&inter,NULL,(void*)controlar_interfaces,NULL);
 
     conexion_memoria = conectar("PUERTO_MEMORIA","IP_MEMORIA","memoria");
     conexion_cpu_dispatch = conectar("PUERTO_CPU_DISPATCH","IP_CPU","cpu dispatch");
@@ -134,12 +138,13 @@ void planRR(void)
 
 void sacarPrimerPCB()
 {
-    if(interrupcion)
+    if(cambioDeProceso)
     {
         sem_wait(&mutex_listas);
         execute = list_remove(ready,0);
         sem_post(&mutex_listas);
-        interrupcion = false;
+        cambioDeProceso = false;
+        log_info(logger,"PID: <%d> - Estado Anterior: <READY> - Estado Actual: <EXECUTE>",execute->pid);
     }
 }
 
@@ -152,7 +157,7 @@ void planVRR()
 
         pthread_mutex_lock(&mutex_plani);
         pthread_mutex_unlock(&mutex_plani);
-        if(interrupcion)
+        if(cambioDeProceso)
         {
             if(list_is_empty(readyQuantum))
             {
@@ -162,7 +167,7 @@ void planVRR()
             }
             else execute = list_remove(readyQuantum,0);
 
-            interrupcion = false;
+            cambioDeProceso = false;
         }
 
         pthread_t interrupciones;
@@ -174,7 +179,7 @@ void planVRR()
         t_list* lista = enviar_al_CPU(execute);
         atender_syscall(lista);
 
-        if(interrupcion)
+        if(cambioDeProceso)
         {
             execute->quantum -= temporal_gettime(quantum);
             
@@ -234,9 +239,7 @@ void controlar_interfaces()
     {
         int conexion_I_O = esperar_cliente(server_fd);
         {
-            int i;
-            recv(conexion_I_O,&i,sizeof(int),MSG_WAITALL);
-            send(conexion_I_O,&i,sizeof(int),0);
+        responder_handshake(conexion_I_O);
         }
         interfaz *i = malloc(sizeof(interfaz));
         i->conexion = conexion_I_O;
@@ -341,7 +344,9 @@ t_list* enviar_al_CPU(PCB* a_ejecutar)
     recv(conexion_cpu_dispatch,&(a_ejecutar->DI),sizeof(uint32_t),MSG_WAITALL);
 
     bool paq;
+    int i;
     recv(conexion_cpu_dispatch,&(paq),sizeof(bool),MSG_WAITALL);
+    recv(conexion_cpu_dispatch,&i,sizeof(int),MSG_WAITALL);
     if(paq)return recibir_paquete(conexion_cpu_dispatch);
     return NULL;
 }
@@ -373,7 +378,7 @@ void interrupcionesRR(PCB proceso)
             i = 0;
 			send(conexion_cpu_interrupt,&i,sizeof(int),0);
 			log_info(logger,"PID: <%d> - Desalojado por fin de Quantum",execute->pid);
-            interrupcion = true;
+            cambioDeProceso = true;
 		}
 	}
 }
@@ -389,7 +394,7 @@ void atender_syscall(t_list* lista)
         sem_post(&mutex_listas);
         return;
     }
-    switch((int)list_get(lista,0))
+    switch(*(int*)list_get(lista,0))
     {
         case SALIR:
             exit_execute();
@@ -532,6 +537,7 @@ void exit_execute()
 		free(execute);
 		sem_post(&espacio_en_colas);
         log_info(logger,"Finaliza el proceso <%d> - Motivo: <SUCCESS / INVALID_RESOURCE / INVALID_INTERFACE / OUT_OF_MEMORY / INTERRUPTED_BY_USER>",pid);
+        cambioDeProceso = true;
 
 }
 

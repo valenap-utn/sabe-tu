@@ -61,9 +61,9 @@ void instrucciones()
             execute(ins);
             PC++;
         }
+        devolver_contexto(conexion_kernel);
         interrupcion = 1;
         sysCall = false;
-        devolver_contexto(conexion_kernel);
     }
 }
 
@@ -97,19 +97,15 @@ void devolver_contexto(int conexion)
     send(conexion,&EDX,sizeof(uint32_t),0);
     send(conexion,&SI,sizeof(uint32_t),0);
     send(conexion,&DI,sizeof(uint32_t),0);
-    bool paq;
-    if(paquete != NULL)
+
+    send(conexion,&sysCall,sizeof(bool),0);
+
+    if(sysCall)
     {
-        paq = true;
-        send(conexion,&paq,sizeof(bool),0);
         enviar_paquete(paquete,conexion);
         eliminar_paquete(paquete);
-        paquete = NULL;
     }
-    else{
-        paq = false;
-        send(conexion,&paq,sizeof(bool),0);
-    }
+
 }
 
 char* fetch(int conexion)
@@ -310,6 +306,10 @@ void *stringAregistro(char* registro)
 	if(string_equals_ignore_case(Sregistro, "DI"))
 	{
 		return &DI;
+	}
+    if(string_equals_ignore_case(Sregistro, "PC"))
+	{
+		return &PC;
 	}
     return NULL;
 }

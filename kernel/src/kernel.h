@@ -14,7 +14,6 @@
 
 enum conucicacion_cpu
 {
-    NULO,
     ESPERAR,
     SENIAL,
     DORMIR,
@@ -105,6 +104,7 @@ void sacarPrimerPCB();
 bool encontrar_recursos_del_execute(void *r);
 void liberar_procesos_bloqueados_por_recursos(char* nombre);
 void loggear_lista(t_list *lista);
+void controlar_interfaces();
 
 
 

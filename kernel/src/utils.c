@@ -244,3 +244,10 @@ void handshake(int conexion,char* nombre)
         log_error(logger,"handshake fallido con %s",nombre);
     }
 }
+
+void responder_handshake(int conexion)
+{
+    int i;
+    recv(conexion,&i,sizeof(int),MSG_WAITALL);
+    send(conexion,&i,sizeof(int),0);
+}
