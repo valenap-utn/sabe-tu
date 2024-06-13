@@ -8,11 +8,12 @@
 #include <pthread.h>
 #include<commons/collections/list.h>
 #include<commons/string.h>
+#include<math.h>
 
 enum comunicacion_con_kernel{
     CREACION,
-    FINALIZACION,
-    AJUSTAR
+    FINALIZACION
+   // AJUSTAR
 };
 
 enum comunicacion_con_cpu
@@ -20,17 +21,26 @@ enum comunicacion_con_cpu
     INSTRUCCION,
     MARCO,
     LECTURA,
-    ESCRITURA
+    ESCRITURA,
+    AJUSTE
 };
 
+enum comunicacion_io{
+    ESCRIBIR,
+    LEER
+};
 struct proceso{
     int pid;
     char* nombre;
     t_list* instrucciones;
     int tamanio;
+    t_list* paginas;
 };
 
+
+
 typedef struct proceso proceso;
+
 
 t_list* procesos;
 
@@ -43,5 +53,12 @@ void comunicacion_kernel(int conexion);
 void comunicacion_io(void);
 struct proceso *guardar_proceso(int conexion);
 bool cmpProcesoId(void *p);
+void atender_io(int conexion);
+void iniciar_paginasOcupadas();
+void uint32_to_bytes(uint32_t valor, unsigned char bytes[4]);
+uint32_t bytes_to_uint32(const unsigned char bytes[4]);
+bool modificar_paginas_proceso(proceso* p,int new_tam);
+
+
 
 #endif

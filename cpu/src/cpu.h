@@ -13,7 +13,8 @@ enum comunicacion_con_memoria
     INSTRUCCION,
     MARCO,
     LECTURA,
-    ESCRITURA
+    ESCRITURA,
+    AJUSTE
 };
 
 enum instrucciones

@@ -20,8 +20,8 @@ t_paquete* paquete;
 
 int main(int argc, char* argv[]) {
     
-    config = config_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/cpu/cpu.config");
-    logger = log_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/cpu/cpu.log","CPU",1,LOG_LEVEL_INFO);
+    config = config_create("cpu.config");
+    logger = log_create(".log","CPU",1,LOG_LEVEL_INFO);
 
     conexion_memoria = conectar("PUERTO_MEMORIA","IP_MEMORIA");
     
@@ -170,28 +170,30 @@ t_list *decode(char* instruccion)
         list_add(operandos,(void*)COPY_STRING);
         list_add(operandos,(void*)strtoul(traduccion[1],NULL,10));
 	}
-    if(string_equals_ignore_case(traduccion[0], "WAIT"))
+    if(string_equals_ignore_case(traduccion[0], "WAIT")) //
 	{
 		list_add(operandos,(void*)WAIT);
 		list_add(operandos,traduccion[1]);
 	}
-    if(string_equals_ignore_case(traduccion[0], "SIGNAL"))
+    if(string_equals_ignore_case(traduccion[0], "SIGNAL")) //
 	{
 		list_add(operandos,(void*)SIGNAL);
 		list_add(operandos,(void*)traduccion[1]);
 	}
-    if(string_equals_ignore_case(traduccion[0], "IO_GEN_SLEEP"))
+    if(string_equals_ignore_case(traduccion[0], "IO_GEN_SLEEP")) //
 	{
         list_add(operandos,(void*)IO_GEN_SLEEP);
-		list_add(operandos,(void*)traduccion[1]);
+        char* nombre = string_new();
+	    string_append(&nombre, traduccion[1]);
+		list_add(operandos,(void*)nombre);
 		list_add(operandos,atoi(traduccion[2]));
 	}
-    if(string_equals_ignore_case(traduccion[0], "IO_STDIN_READ"))
+    if(string_equals_ignore_case(traduccion[0], "IO_STDIN_READ")) //
 	{
         list_add(operandos,(void*)IO_STDIN_READ);
         list_add_trad1_strAReg2y3(operandos, traduccion[1], traduccion[2], traduccion[3]);
 	}
-    if(string_equals_ignore_case(traduccion[0], "IO_STDOUT_WRITE"))
+    if(string_equals_ignore_case(traduccion[0], "IO_STDOUT_WRITE")) //
 	{
         list_add(operandos,(void*)IO_STDOUT_WRITE);
         list_add_trad1_strAReg2y3(operandos, traduccion[1], traduccion[2], traduccion[3]);
@@ -212,7 +214,7 @@ t_list *decode(char* instruccion)
         list_add_trad1y2(operandos, traduccion[1], traduccion[2]);
         list_add(operandos,stringAregistro(traduccion[3]));
 	}
-    if(string_equals_ignore_case(traduccion[0], "IO_FS_WRITE"))
+    if(string_equals_ignore_case(traduccion[0], "IO_FS_WRITE")) 
 	{
         list_add(operandos,(void*)IO_FS_WRITE);
         list_add_trad1y2(operandos, traduccion[1], traduccion[2]);
@@ -235,6 +237,8 @@ t_list *decode(char* instruccion)
 }
 
 //PROPUESTA
+
+
 
 void list_add_strAReg1_strtoul2(t_list* operandos, char* traduccion1, char* traduccion2){
     list_add(operandos, stringAregistro(traduccion1));

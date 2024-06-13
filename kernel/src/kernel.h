@@ -94,7 +94,7 @@ void iniciar_planificaciones();
 void atender_syscall(t_list* lista);
 void operaciones_de_interfaz(interfaz* i);
 interfaz* encontrarInterfaz(char* nombre,int tipo);
-void exit_execute();
+void exit_execute(char * razon);
 void bloquear_execute(char* nombre);
 void memoria_liberar_proceso(int pid);
 void inicializar_recursos(void);

@@ -56,4 +56,6 @@ void paquete_a_memoria(char* comando,int conexion,int pid)
     send(conexion,&i,sizeof(int),0);
     send(conexion,comando,i,0);
     send(conexion,&pid,sizeof(int),0);
+
+    recv(conexion,&i,sizeof(int),MSG_WAITALL);
 }

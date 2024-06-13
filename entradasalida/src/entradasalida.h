@@ -30,4 +30,5 @@ typedef struct interfaz interfaz;
 void inter(char *nombre);
 int tipoInter(char* s);
 
+
 #endif 

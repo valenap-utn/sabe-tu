@@ -18,10 +18,10 @@
     sem_t mutex_listas_recursos;
 
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]){
     
-    config = config_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/kernel/kernel.config");
-    logger = log_create("/home/utnso/tp-2024-1c-Grupo-Buenisimo/kernel/Kernel.log","KERNEL",1,LOG_LEVEL_INFO);
+    config = config_create("kernel.config");
+    logger = log_create("Kernel.log","KERNEL",1,LOG_LEVEL_INFO);
 
     ready = list_create();
     new = list_create();
@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
     conexion_memoria = conectar("PUERTO_MEMORIA","IP_MEMORIA","memoria");
     conexion_cpu_dispatch = conectar("PUERTO_CPU_DISPATCH","IP_CPU","cpu dispatch");
     conexion_cpu_interrupt = conectar("PUERTO_CPU_INTERRUPT","IP_CPU","cpu interrupt");
-    log_info(logger, "Entrada y salida conectada");
+
 
     while(1)
     {
@@ -144,7 +144,7 @@ void sacarPrimerPCB()
         execute = list_remove(ready,0);
         sem_post(&mutex_listas);
         cambioDeProceso = false;
-        log_info(logger,"PID: <%d> - Estado Anterior: <READY> - Estado Actual: <EXECUTE>",execute->pid);
+        log_info(logger,"PID: <%d> - Estado Anterior: <READY> - Estado Actual: <EXECUTE>",execute->pid); 
     }
 }
 
@@ -235,6 +235,7 @@ void loggear_lista(t_list *lista)
 void controlar_interfaces()
 {
     int server_fd = iniciar_servidor();
+    log_info(logger, "Entrada y salida conectada");
     while(1)
     {
         int conexion_I_O = esperar_cliente(server_fd);
@@ -250,8 +251,10 @@ void controlar_interfaces()
         
         int tamanio;
         recv(conexion_I_O,&tamanio,sizeof(int),MSG_WAITALL);
-        char nombre[tamanio];
+        char nombre[tamanio+1];
         recv(conexion_I_O,nombre,tamanio,MSG_WAITALL);
+
+        sprintf(nombre,"%.*s",tamanio,nombre);
         char* nombrePosta = string_new();
         string_append(&nombrePosta,nombre);
 
@@ -262,6 +265,8 @@ void controlar_interfaces()
         pthread_t hilo;
 
         pthread_create(&hilo,NULL,(void*)operaciones_de_interfaz,i);
+
+        pthread_detach(hilo);
     }
 }
 
@@ -279,10 +284,12 @@ void operaciones_de_interfaz(interfaz* i)
             comunicacion = IO_GEN_SLEEP;
             send(i->conexion,&comunicacion,sizeof(int),0);
 
-            send(i->conexion,op->parametro,sizeof(int),0);
+            int parametro = (int)op->parametro;
+
+            send(i->conexion,&parametro,sizeof(int),0);
 
 
-            recv(i->conexion,NULL,sizeof(int),MSG_WAITALL);
+            recv(i->conexion,&comunicacion,sizeof(int),MSG_WAITALL);
             i->libre = true;
             desbloquearProceso(op->pcb);
             break;
@@ -311,7 +318,7 @@ void desbloquearProceso(struct PCB* proceso)
 	list_add(ready,proceso);
 	sem_post(&mutex_listas);
 	log_info(logger,"PID: <%d> - Estado Anterior: <BLOCKED> - Estado Actual: <READY>",proceso->pid);
-	// sem_post(&hay_cosas_en_ready);
+	sem_post(&contador_ready);
 }
 
 
@@ -397,7 +404,7 @@ void atender_syscall(t_list* lista)
     switch(*(int*)list_get(lista,0))
     {
         case SALIR:
-            exit_execute();
+            exit_execute("SUCCESS");
         break;
         case DORMIR:
             char *nombre_int = list_remove(lista,1);
@@ -406,8 +413,10 @@ void atender_syscall(t_list* lista)
             {
                 struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
                 op->pcb = execute;
-                op->parametro = list_remove(lista,1);
+                op->parametro = *(int*)list_remove(lista,1);
                 op->operacion = DORMIR;
+
+                list_add(i->cola,op);
 
                 bloquear_execute(nombre_int);
 
@@ -440,8 +449,7 @@ void atender_syscall(t_list* lista)
 			}
 		}
 		else{
-			log_error(logger,"Finaliza el proceso <%d> - Motivo: <INVALID_RESOURCE>",execute->pid);
-			exit_execute();
+			exit_execute("INVALID_RESOURCE");
 		}
         break;
         case SENIAL:
@@ -467,7 +475,7 @@ void atender_syscall(t_list* lista)
 		else{
 			log_error(logger,"Finaliza el proceso <%d> - Motivo: <INVALID_RESOURCE>",execute->pid);
 			memoria_liberar_proceso(execute->pid);
-			exit_execute();
+			exit_execute("INVALID_RESOURCE");
 		}
         break;
     }
@@ -508,7 +516,7 @@ void bloquear_execute(char* nombre)
 	sem_post(&mutex_listas);
 	log_info(logger,"PID: <%d> - Estado Anterior: <EXECUTE> - Estado Actual: <BLOCKED>",execute->pid);
 	log_info(logger,"PID: <%d> - Bloqueado por: <%s>",execute->pid,nombre);
-	// sem_post(&bloqueos);
+    cambioDeProceso = true;
 }
 
 interfaz* encontrarInterfaz(char* nombre,int tipo)
@@ -519,16 +527,16 @@ interfaz* encontrarInterfaz(char* nombre,int tipo)
     };
 
     interfaz *i = list_find(interfaces,comparar);
-    if(i->tipo != tipo && i == NULL)
+    if(i == NULL ||  i->tipo != tipo)
     {
-        exit_execute();
+        exit_execute("INVALID_INTERFACE");
         return NULL;
     }
 
     return i;
 }
 
-void exit_execute()
+void exit_execute(char * razon)
 {
     	// desbloquear_todo(execute);
 		// sacar_de_laMatriz(execute->PID);
@@ -536,7 +544,7 @@ void exit_execute()
         memoria_liberar_proceso(execute->pid);
 		free(execute);
 		sem_post(&espacio_en_colas);
-        log_info(logger,"Finaliza el proceso <%d> - Motivo: <SUCCESS / INVALID_RESOURCE / INVALID_INTERFACE / OUT_OF_MEMORY / INTERRUPTED_BY_USER>",pid);
+        log_info(logger,"Finaliza el proceso <%d> - Motivo: <%s>",pid,razon);
         cambioDeProceso = true;
 
 }

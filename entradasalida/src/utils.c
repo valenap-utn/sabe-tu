@@ -224,7 +224,7 @@ t_list* recibir_paquete(int socket_cliente)
 
 // cosas que agregamos
 
-int conectar(char* puerto,char* ip,t_config* config){
+int conectar(char* puerto,char* ip){
 	int conexion = crear_conexion(config_get_string_value(config,ip), config_get_string_value(config,puerto));
     handshake(conexion);
 	return conexion;
