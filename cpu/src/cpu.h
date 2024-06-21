@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include<pthread.h>
-
 #include "instrucciones.h"
 
 enum comunicacion_con_memoria
@@ -40,7 +39,8 @@ enum instrucciones
     EXIT
 };
 
-int conexion_memoria;
+
+
 
 
 int interrupcion = 1;

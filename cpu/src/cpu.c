@@ -17,11 +17,24 @@ bool sysCall = false;
 
 t_paquete* paquete;
 
+t_list *tlb;
+
+int conexion_memoria;
+int cant_entradas_tlb;
+char* algoritmo_reemplazo;
 
 int main(int argc, char* argv[]) {
     
     config = config_create("cpu.config");
     logger = log_create(".log","CPU",1,LOG_LEVEL_INFO);
+
+    cant_entradas_tlb = config_get_int_value(config, "CANTIDAD_ENTRADAS_TLB");
+
+    algoritmo_reemplazo = config_get_string_value(config, "ALGORITMO_TLB");
+
+
+    tlb = list_create();
+
 
     conexion_memoria = conectar("PUERTO_MEMORIA","IP_MEMORIA");
     
@@ -66,6 +79,7 @@ void instrucciones()
         sysCall = false;
     }
 }
+
 
 
 void actualizar_registros(int conexion)

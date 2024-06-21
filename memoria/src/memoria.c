@@ -12,9 +12,6 @@ int paginasLibres;
 
 bool *paginasOcupadas;
 
-
-
-
 int pid;
 
 int server_fd;
@@ -35,6 +32,8 @@ int main(int argc, char* argv[]) {
     paginasLibres =cant_paginas;
 
     iniciar_paginasOcupadas();
+
+    pthread_mutex_init(&mutex_pid,NULL);
 
 
 
@@ -67,57 +66,99 @@ void comunicacion_cpu(int conexion)
         proceso *p;
         switch (peticion)
         {
-        case INSTRUCCION:
-            int pc;
+            case INSTRUCCION:
+            {
+                int pc;
 
-            recv(conexion,&pid,sizeof(int),MSG_WAITALL);
-            recv(conexion,&pc,sizeof(int),MSG_WAITALL);
+                pthread_mutex_lock(&mutex_pid);
+                recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+                recv(conexion,&pc,sizeof(int),MSG_WAITALL);
 
-            p = (proceso*)list_find(procesos,cmpProcesoId);
-            char* instruccion = string_new();
-            string_append(&instruccion,list_get(p->instrucciones,pc));
-            pc = string_length(instruccion);
+                p = (proceso*)list_find(procesos,cmpProcesoId);
+                pthread_mutex_unlock(&mutex_pid);
+                
+                char* instruccion = string_new();
+                string_append(&instruccion,list_get(p->instrucciones,pc));
+                pc = string_length(instruccion);
 
 
-            send(conexion,&pc,sizeof(int),0);
-            send(conexion,instruccion,sizeof(char)*pc,0);
-            free(instruccion);
-        break;
-        case MARCO:
-            uint32_t logica;
+                send(conexion,&pc,sizeof(int),0);
+                send(conexion,instruccion,sizeof(char)*pc,0);
+                free(instruccion);
+            }    
+            break;
+            case MARCO:
+            {
+                uint32_t pagina;
 
-            
-            recv(conexion,&pid,sizeof(int),MSG_WAITALL);
-            p = (proceso*)list_find(procesos,cmpProcesoId);
+                pthread_mutex_lock(&mutex_pid);
+                recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+                recv(conexion,&pagina,sizeof(uint32_t),MSG_WAITALL);
 
-            recv(conexion,logica,sizeof(uint32_t),MSG_WAITALL);
+                p = (proceso*)list_find(procesos,cmpProcesoId);
 
-            
-            uint32_t pagina = floor(logica/tamanio_pags);
-            uint32_t desplazamiento = logica % tamanio_pags;
-            
+                int marco = (int)list_get(p->paginas,pagina);
 
-        break;
-        case ESCRITURA:
+                log_info(logger,"PID: <%d> - Pagina: <%u> - Marco: <%d>",p->pid,pagina,marco);
+                pthread_mutex_unlock(&mutex_pid);
+                send(conexion,&marco,sizeof(int),0);
+            }
+            break;
+            case ESCRITURA:
+            {   
+                uint32_t direccion;
+                int tamanio;
+                int pid;
+                uint32_t mensaje;
+                recv(conexion,&direccion,sizeof(int),MSG_WAITALL);
+                recv(conexion,&tamanio,sizeof(int),MSG_WAITALL);
+                recv(conexion,&pid,sizeof(int),MSG_WAITALL);
 
-        break;
-        case LECTURA:
+                recv(conexion,&mensaje,tamanio,MSG_WAITALL);
+                char *c = uint32_to_bytes(mensaje);
+                recibir_escritura(conexion,direccion,tamanio,pid,c);
+                
+                log_info(logger,"PID: <%d> - Accion: <ESCRIBIR> - Direccion fisica: <%u> - Tamaño <%d>", pid,direccion,tamanio);
+                int confirmacion = 1;
+                send(conexion,&confirmacion,sizeof(int),0);
 
-        break;
-        case AJUSTE:
-            int new_tam;
+                free(c);
+            }
+            break;
+            case LECTURA:
+            {
+                int direccion;
+                int tamanio = 1;
+                int pid;
+                recv(conexion,&direccion,sizeof(int),MSG_WAITALL);
+                recv(conexion,&tamanio,sizeof(int),MSG_WAITALL);
+                recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+        
+                log_info(logger, "PID: <%d> - Accion: <LEER> - Direccion fisica: <%d> - Tamaño <%d>", pid, direccion, tamanio);
+                char *c = leer_peticion(pid,direccion,tamanio);
+                uint32_t* respuesta = bytes_to_uint32(c);
 
-            recv(conexion,&pid,sizeof(int),MSG_WAITALL);
-            recv(conexion,&new_tam,sizeof(int),MSG_WAITALL);
+                send(conexion,respuesta,tamanio,0);
+                free(c);
+            }
+            break;
+            case AJUSTE:
+            {
+                int new_tam;
+                pthread_mutex_lock(&mutex_pid);
+                recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+                recv(conexion,&new_tam,sizeof(int),MSG_WAITALL);
 
-            p = (proceso*)list_find(procesos,cmpProcesoId);
+                p = (proceso*)list_find(procesos,cmpProcesoId);
+                pthread_mutex_unlock(&mutex_pid);  
+                
+                bool exito = modificar_paginas_proceso(p,new_tam);
 
-            bool exito = modificar_paginas_proceso(p,new_tam);
-
-            send(conexion,&exito,sizeof(bool),0);
-        break;
-        default:
-            log_error(logger,"error en la comunicacion con el cpu");
+                send(conexion,&exito,sizeof(bool),0);
+            }    
+            break;
+            default:
+                log_error(logger,"error en la comunicacion con el cpu");
             break;
         }
     }
@@ -136,26 +177,33 @@ void comunicacion_kernel(int conexion)
         usleep(config_get_int_value(config,"RETARDO_RESPUESTA")*1000);
         switch (peticion)
         {
-        case CREACION:
-            guardar_proceso(conexion);
+            case CREACION:
+            {
+                guardar_proceso(conexion);
 
-            send(conexion,&peticion,sizeof(int),0);
-        break;
-        case FINALIZACION:
-            
-            recv(conexion,&pid,sizeof(int),MSG_WAITALL);
-        
-            proceso *p = list_remove_by_condition(procesos,cmpProcesoId);
-
-            modificar_paginas_proceso(p,0);
-
-            list_destroy_and_destroy_elements(p->instrucciones,free);
-            free(p->nombre);
-            free(p);
-        break;
-        default:
-            log_error(logger,"error en la comunicacion con el kernel");
+                send(conexion,&peticion,sizeof(int),0);
+            }    
             break;
+            case FINALIZACION:
+            {    
+                pthread_mutex_lock(&mutex_pid);
+                recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+            
+                proceso *p = list_remove_by_condition(procesos,cmpProcesoId);
+                
+                log_info(logger,"PID: <%d> - Tamaño: <%d>",p->pid,p->tamanio/tamanio_pags);
+                pthread_mutex_unlock(&mutex_pid);
+
+                modificar_paginas_proceso(p,0);
+
+                list_destroy_and_destroy_elements(p->instrucciones,free);
+                free(p->nombre);
+                free(p);
+            }    
+            break;
+            default:
+                log_error(logger,"error en la comunicacion con el kernel");
+                break;
         }
     }
 }
@@ -180,14 +228,46 @@ void atender_io(int conexion)
         usleep(config_get_int_value(config,"RETARDO_RESPUESTA")*1000);
         switch(peticion){
             case ESCRIBIR:
+            {
+                uint32_t direccion;
+                int tamanio;
+                int pid;
+                char traduccion;
+                recv(conexion,&direccion,sizeof(int),MSG_WAITALL);
+                recv(conexion,&tamanio,sizeof(int),MSG_WAITALL);
+                recv(conexion,&pid,sizeof(int),MSG_WAITALL);
 
+                char mensaje[tamanio];
+
+                recv(conexion,mensaje,tamanio,MSG_WAITALL);
+                recibir_escritura(conexion,direccion,tamanio,pid,mensaje);
+                
+                log_info(logger,"PID: <%d> - Accion: <ESCRIBIR> - Direccion fisica: <%u> - Tamaño <%d>", pid,direccion,tamanio);
+                int confirmacion = 1;
+                send(conexion,&confirmacion,sizeof(int),0);
+            }
             break; 
             case LEER:
+            {
+                int direccion;
+                int tamanio;
+                int pid;
+                recv(conexion,&direccion,sizeof(int),MSG_WAITALL);
+                recv(conexion,&tamanio,sizeof(int),MSG_WAITALL);
+                recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+        
+                log_info(logger, "PID: <%d> - Accion: <LEER> - Direccion fisica: <%d> - Tamaño <%d>", pid, direccion, tamanio);
 
+                char* respuesta = leer_peticion(pid,direccion,tamanio);
+
+                send(conexion,respuesta,tamanio,0);
+
+                free(respuesta);
+            }
             break;
             
             case -1:
-
+                
             break;
         }
     }
@@ -217,6 +297,7 @@ struct proceso *guardar_proceso(int conexion)
 	}
 	list_add(procesos,p);
 	fclose(archivo);
+    log_info(logger,"PID: <%d> - Tamaño: <0>",p->pid);
 	return p;
 }
 
@@ -226,11 +307,13 @@ void iniciar_paginasOcupadas()
     for(int i = 0;i < cant_paginas;i++)((char*)paginasOcupadas)[i] = false;
 }
 
-void uint32_to_bytes(uint32_t valor, unsigned char bytes[4]) {
+char* uint32_to_bytes(uint32_t valor) {
+    char *bytes = malloc(sizeof(char)*4);
     bytes[0] = (valor >> 24) & 0xFF; // Byte más significativo
     bytes[1] = (valor >> 16) & 0xFF;
     bytes[2] = (valor >> 8) & 0xFF;
     bytes[3] = valor & 0xFF; // Byte menos significativo
+    return bytes;
 }
 
 uint32_t bytes_to_uint32(const unsigned char bytes[4]) {
@@ -246,6 +329,7 @@ bool modificar_paginas_proceso(proceso* p,int new_tam)
     //Ampliamos
     if(p->tamanio < new_tam)
     {
+        log_info(logger,"PID: <%d> - Tamaño Actual: <%d> - Tamaño a Ampliar: <%d>",p->pid,p->tamanio,new_tam);
         for(int i = 0;(i < cant_paginas) && p->tamanio < new_tam;i++)
         {
             if(!paginasOcupadas[i])
@@ -259,11 +343,74 @@ bool modificar_paginas_proceso(proceso* p,int new_tam)
     }
     else //O reducimos 
     {
-        for(int i = 0;i < p->tamanio/tamanio_pags ;i++)
+        log_info(logger,"PID: <%d> - Tamaño Actual: <%d> - Tamaño a Reducir: <%d>",p->pid,p->tamanio,new_tam);
+        for(int i = list_size(p->paginas);p->tamanio != new_tam ;i--)
         {
-            paginasOcupadas[(int)list_get(p->paginas,i)] = false;
+            paginasOcupadas[(int)list_remove(p->paginas,i)] = false;
             paginasLibres++;
+            p->tamanio -= tamanio_pags;
+
         }
     }
     return true;
+}
+
+
+void recibir_escritura(int conexion,int direccion,int tamanio,int pid,char* mensaje)
+{
+    int marco = floor(direccion/tamanio_pags);
+    int espacio_libre = tamanio_pags -  direccion % tamanio_pags;
+    int indice = 0;
+    while(tamanio != 0)
+    {   
+        int minimo = min(espacio_libre,tamanio);
+        for(int i = 0;i < minimo; i++)
+        {
+            ((char*)espacioDeUsuario)[direccion+i] = mensaje[indice++];
+        }
+        marco = proximo_marco(pid,marco);
+        tamanio -= minimo;
+        espacio_libre = tamanio_pags;
+        direccion = marco*tamanio_pags;
+    }
+}
+
+void* leer_peticion(int pid,int direccion,int tamanio)
+{
+    int marco = floor(direccion/tamanio_pags);
+    int espacio_libre = tamanio_pags -  direccion % tamanio_pags;
+    char* lectura = malloc(sizeof(char)*tamanio);
+    int indice = 0;
+    while(tamanio != 0)
+    {   
+        int minimo = min(espacio_libre,tamanio);
+        for(int i = 0;i < minimo; i++)
+        {
+            lectura[indice++] = ((char*)espacioDeUsuario)[direccion+i];
+        }
+        marco = proximo_marco(pid,marco);
+        tamanio -= minimo;
+        espacio_libre = tamanio_pags;
+        direccion = marco*tamanio_pags;
+    }
+    return lectura;
+}
+
+int proximo_marco(int Pid, int actual)
+{
+    pthread_mutex_lock(&mutex_pid);
+    pid = Pid; 
+
+    proceso *p = list_find(procesos,cmpProcesoId);
+
+    pthread_mutex_unlock(&mutex_pid);
+    
+    int i = 0;
+    while((int)list_get(p->paginas,i) != actual)i++;
+    return (int)list_get(p->paginas,++i);
+}
+
+int min(int a, int b)
+{
+    return (a < b) ? a : b;
 }

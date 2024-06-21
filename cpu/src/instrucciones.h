@@ -2,8 +2,8 @@
 #define INSTRUCCIONES_H_
 
 #include <stdint.h>
-#include "utils.h"
-#include<commons/string.h>
+#include <commons/string.h>
+#include "TLB.h"
 
 
 enum conucicacion_kernel
