@@ -14,6 +14,11 @@ enum comunicacion_kernel_tipos{
     DIALFS
 };
 
+enum comunicacion_io{
+    ESCRIBIR,
+    LEER
+};
+
 enum comunicacion_kernel_ins{
     IO_GEN_SLEEP,
     IO_STDIN_READ,

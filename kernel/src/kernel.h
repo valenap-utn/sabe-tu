@@ -24,7 +24,9 @@ enum conucicacion_cpu
     TRUNCAR,
     FS_ESCRIBIR,
     FS_LEER,
-    SALIR
+    SALIR,
+    RESIZE,
+    OUT_OF_MEMORY
 };
 
 enum comunicacion_io_tipos{

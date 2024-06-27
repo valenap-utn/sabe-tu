@@ -22,7 +22,8 @@ enum comunicacion_con_cpu
     MARCO,
     LECTURA,
     ESCRITURA,
-    AJUSTE
+    AJUSTE,
+    COPIAR
 };
 
 enum comunicacion_io{
@@ -61,10 +62,11 @@ uint32_t bytes_to_uint32(const unsigned char bytes[4]);
 bool modificar_paginas_proceso(proceso* p,int new_tam);
 
 void* leer_peticion(int pid, int direccion, int tamanio);
-void recibir_escritura(int conexion,int direccion,int tamanio,int pid,char* mensaje);
+void recibir_escritura(int direccion,int tamanio,int pid,char* mensaje);
 int proximo_marco(int Pid, int actual);
 int min(int a, int b);
 char* uint32_to_bytes(uint32_t valor);
 uint32_t bytes_to_uint32(const unsigned char bytes[4]);
+int logicaAFisica(int logica,proceso* p);
 
 #endif

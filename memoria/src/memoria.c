@@ -116,7 +116,7 @@ void comunicacion_cpu(int conexion)
 
                 recv(conexion,&mensaje,tamanio,MSG_WAITALL);
                 char *c = uint32_to_bytes(mensaje);
-                recibir_escritura(conexion,direccion,tamanio,pid,c);
+                recibir_escritura(direccion,tamanio,pid,c);
                 
                 log_info(logger,"PID: <%d> - Accion: <ESCRIBIR> - Direccion fisica: <%u> - Tamaño <%d>", pid,direccion,tamanio);
                 int confirmacion = 1;
@@ -156,6 +156,29 @@ void comunicacion_cpu(int conexion)
 
                 send(conexion,&exito,sizeof(bool),0);
             }    
+            break;
+            case COPIAR:
+                int dirString;
+                int dir;
+                int tam;
+                
+                pthread_mutex_lock(&mutex_pid);
+                recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+                p = (proceso*)list_find(procesos,cmpProcesoId);
+                pthread_mutex_unlock(&mutex_pid);
+                
+                
+                recv(conexion,&dir,sizeof(int),MSG_WAITALL);
+                recv(conexion,&tam,sizeof(int),MSG_WAITALL);
+                recv(conexion,&dirString,sizeof(int),MSG_WAITALL);
+
+                dirString = logicaAFisica(dirString,p);
+                dir = logicaAFisica(dir,p);
+
+                recibir_escritura(dir,tam,p->pid,((char*)espacioDeUsuario)[dirString]);
+
+                int confirmacion = 1;
+                send(conexion,&confirmacion,sizeof(int),0);
             break;
             default:
                 log_error(logger,"error en la comunicacion con el cpu");
@@ -240,7 +263,7 @@ void atender_io(int conexion)
                 char mensaje[tamanio];
 
                 recv(conexion,mensaje,tamanio,MSG_WAITALL);
-                recibir_escritura(conexion,direccion,tamanio,pid,mensaje);
+                recibir_escritura(direccion,tamanio,pid,mensaje);
                 
                 log_info(logger,"PID: <%d> - Accion: <ESCRIBIR> - Direccion fisica: <%u> - Tamaño <%d>", pid,direccion,tamanio);
                 int confirmacion = 1;
@@ -356,7 +379,7 @@ bool modificar_paginas_proceso(proceso* p,int new_tam)
 }
 
 
-void recibir_escritura(int conexion,int direccion,int tamanio,int pid,char* mensaje)
+void recibir_escritura(int direccion,int tamanio,int pid,char* mensaje)
 {
     int marco = floor(direccion/tamanio_pags);
     int espacio_libre = tamanio_pags -  direccion % tamanio_pags;
@@ -413,4 +436,11 @@ int proximo_marco(int Pid, int actual)
 int min(int a, int b)
 {
     return (a < b) ? a : b;
+}
+
+int logicaAFisica(int logica,proceso* p)
+{
+    int pagina = floor(logica/tamanio_pags);
+    int offset = logica%tamanio_pags;
+    return (int)list_get(p->paginas,pagina)*tamanio_pags + offset; //direccion fisica
 }

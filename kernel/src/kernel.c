@@ -35,6 +35,7 @@ int main(int argc, char* argv[]){
     sem_init(&contador_ready,0,0);
 
     sem_init(&mutex_listas,0,1);
+    sem_init(&mutex_listas_recursos,0,1);
 
     sem_init(&espacio_en_colas,0,config_get_int_value(config,"GRADO_MULTIPROGRAMACION"));
 
@@ -280,26 +281,41 @@ void operaciones_de_interfaz(interfaz* i)
         struct cola_de_operaciones *op = list_remove(i->cola,0);
         switch (op->operacion)
         {
-        case DORMIR:
-            comunicacion = IO_GEN_SLEEP;
-            send(i->conexion,&comunicacion,sizeof(int),0);
+            case DORMIR:
+                comunicacion = IO_GEN_SLEEP;
+                send(i->conexion,&comunicacion,sizeof(int),0);
 
-            int parametro = (int)op->parametro;
+                int parametro = (int)op->parametro;
 
-            send(i->conexion,&parametro,sizeof(int),0);
-
-
-            recv(i->conexion,&comunicacion,sizeof(int),MSG_WAITALL);
-            i->libre = true;
-            desbloquearProceso(op->pcb);
+                send(i->conexion,&parametro,sizeof(int),0);
             break;
-        case -1:
-            eliminar_interfaz(i);
+
+            case IO_ESCRIBIR:
+                comunicacion = IO_STDOUT_WRITE;
+                send(i->conexion,&comunicacion,sizeof(int),0);
+                
+
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
             break;
-        default:
+            case IO_LEER:
+                comunicacion = IO_STDIN_READ;
+                send(i->conexion,&comunicacion,sizeof(int),0);
+                
+
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+            break;
+            case -1:
+                eliminar_interfaz(i);
+            break;
+            default:
 
             break;
         }
+            recv(i->conexion,&comunicacion,sizeof(int),MSG_WAITALL);
+            i->libre = true;
+            desbloquearProceso(op->pcb);
     }
 }
 
@@ -401,14 +417,18 @@ void atender_syscall(t_list* lista)
         sem_post(&mutex_listas);
         return;
     }
+    interfaz *i;
     switch(*(int*)list_get(lista,0))
     {
+        case OUT_OF_MEMORY:
+            exit_execute("OUT_OF_MEMORY");
+        break;
         case SALIR:
             exit_execute("SUCCESS");
         break;
         case DORMIR:
             char *nombre_int = list_remove(lista,1);
-            interfaz *i = encontrarInterfaz(nombre_int,GENERICA);
+            i = encontrarInterfaz(nombre_int,GENERICA);
             if(i != NULL)
             {
                 struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
@@ -424,7 +444,7 @@ void atender_syscall(t_list* lista)
             }
         break;
         case ESPERAR:
-        nombre = (char*)list_remove(lista,0);
+        nombre = (char*)list_remove(lista,1);
 		if(dictionary_has_key(recursos,nombre))
 		{
 			int instancias = (int)dictionary_get(recursos,nombre);
@@ -446,6 +466,7 @@ void atender_syscall(t_list* lista)
 			{
 			 	int instanciasE = (int)dictionary_get(recursos_del_execute->recursos,nombre);
 			 	dictionary_put(recursos_del_execute->recursos,nombre,(void*)++instanciasE);
+                sem_post(&contador_ready);
 			}
 		}
 		else{
@@ -453,7 +474,7 @@ void atender_syscall(t_list* lista)
 		}
         break;
         case SENIAL:
-        nombre = list_remove(lista,0);
+        nombre = list_remove(lista,1);
         sem_wait(&mutex_listas_recursos);
         rec* recursos_del_execute = (rec*)list_find(recursos_por_proceso,encontrar_recursos_del_execute);
         sem_post(&mutex_listas_recursos);
@@ -471,12 +492,55 @@ void atender_syscall(t_list* lista)
 				// desbloqueamos al primer proceso que pide el recurso
 				liberar_procesos_bloqueados_por_recursos(nombre);
 			}
+            sem_post(&contador_ready);
 		}
 		else{
 			log_error(logger,"Finaliza el proceso <%d> - Motivo: <INVALID_RESOURCE>",execute->pid);
 			memoria_liberar_proceso(execute->pid);
 			exit_execute("INVALID_RESOURCE");
 		}
+        break;
+        case IO_ESCRIBIR:
+        { 
+            char *nombre_int = list_remove(lista,1);
+            i = encontrarInterfaz(nombre_int,GENERICA);
+            if(i != NULL)
+            {
+                struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
+                op->pcb = execute;
+                op->parametro = list_create();
+                list_add((t_list*)op->parametro,list_remove(lista,1));
+                list_add((t_list*)op->parametro,list_remove(lista,1));
+                op->operacion = IO_ESCRIBIR;
+
+                list_add(i->cola,op);
+
+                bloquear_execute(nombre_int);
+
+                sem_post(&i->trigger);
+            }
+        }
+        break;
+        case IO_LEER:
+            {
+                char *nombre_int = list_remove(lista,1);
+                i = encontrarInterfaz(nombre_int,GENERICA);
+                if(i != NULL)
+                {
+                    struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
+                    op->pcb = execute;
+                    op->parametro = list_create();
+                    list_add((t_list*)op->parametro,list_remove(lista,1));
+                    list_add((t_list*)op->parametro,list_remove(lista,1));
+                    op->operacion = IO_LEER;
+
+                    list_add(i->cola,op);
+
+                    bloquear_execute(nombre_int);
+
+                    sem_post(&i->trigger);
+                }
+            }
         break;
     }
 }

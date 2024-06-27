@@ -7,7 +7,7 @@ int buscar_en_TLB(int pid, int pagina)
 {
     for(int i = 0; i <= list_size(tlb); i++)
     {
-        if(list_get(tlb,i)->pid == pid && list_get(tlb,i)->pagina == pagina)
+        if(((TLB*)list_get(tlb,i))->pid == pid && ((TLB*)list_get(tlb,i))->pagina == pagina)
         {
             log_info(logger, "PID: <%d> - TLB HIT - Pagina: <%d>", pid, pagina);
             //Actualizo ultimo uso (para LRU)
@@ -16,7 +16,7 @@ int buscar_en_TLB(int pid, int pagina)
                TLB* entrada = list_remove(tlb,i);
                list_add(tlb,entrada);
             }
-            return list_get(tlb,i)->marco;
+            return ((TLB*)list_get(tlb,i))->marco;
         }
     }
 
@@ -27,7 +27,7 @@ int buscar_en_TLB(int pid, int pagina)
 
     if(marco != -1)
     {
-        aniadir_entrada_en_tlb(tlb, pid, pagina, marco);
+        aniadir_entrada_en_tlb(pid, pagina, marco);
     }
 
     log_info(logger, "PID: <%d> - OBTENER MARCO - Pagina: <%d> - Marco: <%d>", pid, pagina, marco);

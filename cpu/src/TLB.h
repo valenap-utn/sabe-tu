@@ -9,7 +9,8 @@ enum comunicacion_con_memoria
     MARCO,
     LECTURA,
     ESCRITURA,
-    AJUSTE
+    AJUSTE,
+    COPIAR
 };
 
 struct t_TLBEntry //entrada en TLB

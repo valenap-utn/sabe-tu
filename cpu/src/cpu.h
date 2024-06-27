@@ -7,14 +7,7 @@
 #include<pthread.h>
 #include "instrucciones.h"
 
-enum comunicacion_con_memoria
-{
-    INSTRUCCION,
-    MARCO,
-    LECTURA,
-    ESCRITURA,
-    AJUSTE
-};
+
 
 enum instrucciones
 {

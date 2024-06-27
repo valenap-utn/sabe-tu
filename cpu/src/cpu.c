@@ -187,12 +187,16 @@ t_list *decode(char* instruccion)
     if(string_equals_ignore_case(traduccion[0], "WAIT")) //
 	{
 		list_add(operandos,(void*)WAIT);
-		list_add(operandos,traduccion[1]);
+        char* nombre = string_new();
+	    string_append(&nombre, traduccion[1]);
+		list_add(operandos,(void*)nombre);
 	}
     if(string_equals_ignore_case(traduccion[0], "SIGNAL")) //
 	{
 		list_add(operandos,(void*)SIGNAL);
-		list_add(operandos,(void*)traduccion[1]);
+	    char* nombre = string_new();
+	    string_append(&nombre, traduccion[1]);
+		list_add(operandos,(void*)nombre);
 	}
     if(string_equals_ignore_case(traduccion[0], "IO_GEN_SLEEP")) //
 	{
@@ -265,7 +269,9 @@ void list_add_strAReg_1y2(t_list* operandos, char* traduccion1, char* traduccion
 } 
 
 void list_add_trad1_strAReg2y3(t_list* operandos, char* traduccion1, char* traduccion2, char* traduccion3){
-    list_add(operandos,(void*)traduccion1);
+    char* nombre = string_new();
+	string_append(&nombre, traduccion1);
+	list_add(operandos,(void*)nombre);
     list_add(operandos,stringAregistro(traduccion2));
     list_add(operandos,stringAregistro(traduccion3));
 } 

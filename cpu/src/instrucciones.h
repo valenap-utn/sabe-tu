@@ -18,8 +18,11 @@ enum conucicacion_kernel
     TRUNCAR,
     FS_ESCRIBIR,
     FS_LEER,
-    SALIR
+    SALIR,
+    OUT_OF_MEMORY
 };
+
+
 
 extern uint32_t PC;
 extern int PID;
@@ -46,8 +49,8 @@ void sub(void* destino,void* origen);
 void jnz(void* registro,uint32_t ins);
 void resize(int tamanio);
 void copy_string(void* tamanio);
-void wait(void* recurso);
-void s1gnal(void* recurso);
+void wait(char* recurso);
+void s1gnal(char* recurso);
 void io_gen_sleep(char* interfaz,int unidad_trabajo);
 void io_stdin_read(char* interfaz,void* registro_direccion,void* registro_tamanio);
 void io_stdout_write(char* interfaz,void* registro_direccion,void* registro_tamanio);
@@ -57,6 +60,7 @@ void io_fs_truncate(char* interfaz,void* nombre_archivo,void* registro_tamanio);
 void io_fs_write(char* interfaz,void* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo);
 void io_fs_read(char* interfaz,void* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo);
 void salir();
+int tamanio(void* registro);
 
 
 #endif
