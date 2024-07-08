@@ -52,11 +52,12 @@ void aniadir_entrada_en_tlb(int pid, int pagina, int marco)
 
 int  obtener_marco(int pid, int pagina)
 {
-    int i = MARCO;
-    send(conexion_memoria,&i,sizeof(int),0);
-    send(conexion_memoria,&pid,sizeof(int),0);
-    send(conexion_memoria,&pagina,sizeof(int),0);
 
-    recv(conexion_memoria,&i,sizeof(int),MSG_WAITALL);
-    return i;
+    bool encontrar_entrada(void* entrada)
+    {
+        return (((TLB*)entrada)->pid == pid && ((TLB*)entrada)->pagina == pagina);
+    }
+    TLB* entrada = list_find(tlb,encontrar_entrada);
+    if(entrada == NULL) return -1;
+    else return entrada->marco;
 }

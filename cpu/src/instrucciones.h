@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <commons/string.h>
 #include "TLB.h"
+#include <math.h>
 
 
 enum conucicacion_kernel
@@ -37,6 +38,8 @@ extern uint32_t EDX;
 extern uint32_t SI;
 extern uint32_t DI;
 
+extern int tam_pagina;
+
 extern bool sysCall;
 
 extern t_paquete* paquete;
@@ -61,6 +64,8 @@ void io_fs_write(char* interfaz,void* nombre_archivo,void* registro_direccion,vo
 void io_fs_read(char* interfaz,void* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo);
 void salir();
 int tamanio(void* registro);
+
+uint32_t traducir_direccion(int direccion_logica);
 
 
 #endif

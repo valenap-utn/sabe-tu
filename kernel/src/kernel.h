@@ -98,13 +98,16 @@ void operaciones_de_interfaz(interfaz* i);
 interfaz* encontrarInterfaz(char* nombre,int tipo);
 void exit_execute(char * razon);
 void bloquear_execute(char* nombre);
+
+void liberar_recursos(PCB* proceso);
 void memoria_liberar_proceso(int pid);
+
 void inicializar_recursos(void);
 void inicializar_recursos_del_proceso(PCB* pcb);
 bool elProcesoTieneUnrecurso(rec *recu ,char* nombre);
 void sacarPrimerPCB();
 bool encontrar_recursos_del_execute(void *r);
-void liberar_procesos_bloqueados_por_recursos(char* nombre);
+bool liberar_procesos_bloqueados_por_recursos(char* nombre);
 void loggear_lista(t_list *lista);
 void controlar_interfaces();
 

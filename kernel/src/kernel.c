@@ -70,7 +70,16 @@ int main(int argc, char* argv[]){
 
         break;
         case FINALIZAR_PROCESO:
-
+            if(execute != NULL)if(execute->pid == atoi(comando[1])){
+                exit_execute("INTERRUPTED_BY_USER");
+                int i = 0;
+			    send(conexion_cpu_interrupt,&i,sizeof(int),0);
+            }
+            sacarProcesoDeLista(ready,atoi(comando[1]));
+            sacarProcesoDeLista(blocked,atoi(comando[1]));
+            sacarProcesoDeLista(new,atoi(comando[1]));
+            sem_post(&espacio_en_colas);
+            log_info(logger,"Finaliza el proceso <%d> - Motivo: <INTERRUPTED_BY_USER>",atoi(comando[1]));
         break;
         case INICIAR_PLANIFICACION:
             pthread_mutex_unlock(&mutex_plani);
@@ -82,7 +91,7 @@ int main(int argc, char* argv[]){
 
         break;
         case PROCESO_ESTADO:
-        
+
 
         break;
         case EJECUTAR_SCRIPT:
@@ -96,6 +105,22 @@ int main(int argc, char* argv[]){
     }
 
     return 0;
+}
+
+
+void sacarProcesoDeLista(t_list *lista,int i)
+{
+	sem_wait(&mutex_listas);
+	int pid = i;
+    bool cmpProcesoId(void *p){return ((PCB*)p)->pid == pid;}
+	struct PCB* pcb = list_remove_by_condition(lista,cmpProcesoId);
+	sem_post(&mutex_listas);
+	if(pcb != NULL)
+	{
+        memoria_liberar_proceso(i);
+		liberar_recursos(pcb);
+		if(lista == ready)sem_wait(&contador_ready);
+	}
 }
 
 void planFIFO()
@@ -236,7 +261,6 @@ void loggear_lista(t_list *lista)
 void controlar_interfaces()
 {
     int server_fd = iniciar_servidor();
-    log_info(logger, "Entrada y salida conectada");
     while(1)
     {
         int conexion_I_O = esperar_cliente(server_fd);
@@ -495,7 +519,6 @@ void atender_syscall(t_list* lista)
             sem_post(&contador_ready);
 		}
 		else{
-			log_error(logger,"Finaliza el proceso <%d> - Motivo: <INVALID_RESOURCE>",execute->pid);
 			memoria_liberar_proceso(execute->pid);
 			exit_execute("INVALID_RESOURCE");
 		}
@@ -545,23 +568,28 @@ void atender_syscall(t_list* lista)
     }
 }
 
-void liberar_procesos_bloqueados_por_recursos(char* nombre)
+bool liberar_procesos_bloqueados_por_recursos(char* nombre)
 {
 
     bool cmpRecurso(void * recurso)
     {
+        if(((rec*)recurso)->bloqueando == NULL)return false;
         return string_equals_ignore_case(((rec*)recurso)->bloqueando,nombre);
     }
 
-    rec* recu = list_remove_by_condition(recursos_por_proceso,cmpRecurso);
+    rec* recu = list_find(recursos_por_proceso,cmpRecurso);
 
+    if(recu != NULL)
+    {
     free(recu->bloqueando);
     recu->bloqueando = NULL;
     int instanciasE =dictionary_get(recu->recursos,nombre);
     dictionary_put(recu->recursos,nombre,++instanciasE);
 
-
     desbloquearProceso(recu->pcb);
+    return true;
+    }
+    return false;
 }
 
 bool elProcesoTieneUnrecurso(rec *recu ,char* nombre)
@@ -606,12 +634,46 @@ void exit_execute(char * razon)
 		// sacar_de_laMatriz(execute->PID);
         int pid = execute->pid;
         memoria_liberar_proceso(execute->pid);
+        liberar_recursos(execute);
 		free(execute);
 		sem_post(&espacio_en_colas);
         log_info(logger,"Finaliza el proceso <%d> - Motivo: <%s>",pid,razon);
         cambioDeProceso = true;
 
 }
+
+void liberar_recursos(PCB* proceso)
+{
+    sem_wait(&mutex_listas_recursos);
+    bool encontrar_recursos_del_proceso(void* r)
+    {
+        return ((rec*)r)->pcb == proceso;
+    }
+    rec* recurso_del_proceso = list_find(recursos_por_proceso,encontrar_recursos_del_proceso);
+    for(int i = 0;i < dictionary_size(recurso_del_proceso->recursos);i++)
+    {
+        int instancias;
+        char* nombre_del_rec = list_get(dictionary_keys(recurso_del_proceso->recursos),i);
+        int cant = dictionary_get(recurso_del_proceso->recursos,nombre_del_rec);
+        if(cant > 0)
+        {
+            if(liberar_procesos_bloqueados_por_recursos(nombre_del_rec))cant--;
+            instancias = dictionary_get(recursos,nombre_del_rec);
+            dictionary_put(recursos,nombre_del_rec,instancias + cant);
+        }
+    }
+    if(recurso_del_proceso->bloqueando != NULL)
+    {
+        int instanacias_del_rec = dictionary_get(recursos,recurso_del_proceso->bloqueando);
+        dictionary_put(recursos,recurso_del_proceso->bloqueando,++instanacias_del_rec);
+    }
+    list_remove_element(recursos_por_proceso,recurso_del_proceso);
+
+    dictionary_destroy(recurso_del_proceso->recursos);
+    free(recurso_del_proceso);
+    sem_post(&mutex_listas_recursos);
+}
+
 
 void memoria_liberar_proceso(int pid)
 {

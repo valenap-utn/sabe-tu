@@ -39,10 +39,13 @@ int main(int argc, char* argv[]) {
 
     espacioDeUsuario = malloc(sizeof(char)*tamanio);
 
+    for(int i = 0;i <tamanio;i++)((char*)espacioDeUsuario)[i] = 0;
+
     server_fd = iniciar_servidor();
 
     int conexion_cpu = esperar_cliente(server_fd);
     responder_handshake(conexion_cpu);
+    send(conexion_cpu,&tamanio_pags,sizeof(int),0);
     int conexion_kernel = esperar_cliente(server_fd);
     responder_handshake(conexion_kernel);
 
@@ -68,11 +71,11 @@ void comunicacion_cpu(int conexion)
         {
             case INSTRUCCION:
             {
-                int pc;
+                uint32_t pc;
 
                 pthread_mutex_lock(&mutex_pid);
                 recv(conexion,&pid,sizeof(int),MSG_WAITALL);
-                recv(conexion,&pc,sizeof(int),MSG_WAITALL);
+                recv(conexion,&pc,sizeof(uint32_t),MSG_WAITALL);
 
                 p = (proceso*)list_find(procesos,cmpProcesoId);
                 pthread_mutex_unlock(&mutex_pid);
@@ -136,9 +139,9 @@ void comunicacion_cpu(int conexion)
         
                 log_info(logger, "PID: <%d> - Accion: <LEER> - Direccion fisica: <%d> - Tamaño <%d>", pid, direccion, tamanio);
                 char *c = leer_peticion(pid,direccion,tamanio);
-                uint32_t* respuesta = bytes_to_uint32(c);
+                uint32_t respuesta = bytes_to_uint32(c);
 
-                send(conexion,respuesta,tamanio,0);
+                send(conexion,&respuesta,tamanio,0);
                 free(c);
             }
             break;
@@ -345,7 +348,7 @@ uint32_t bytes_to_uint32(const unsigned char bytes[4]) {
 
 bool modificar_paginas_proceso(proceso* p,int new_tam)
 {   //Verificamos si hay espacio
-    if((new_tam - p->tamanio)/tamanio_pags < paginasLibres)
+    if((new_tam - p->tamanio)/tamanio_pags > paginasLibres)
     {
         return false;
     }

@@ -1,7 +1,7 @@
 #include "instrucciones.h"
 
 int sCall;
-
+int tam_pagina;
 char* nombre;
 void set(void* registro, uint32_t valor)
 {
@@ -10,28 +10,44 @@ void set(void* registro, uint32_t valor)
 
 void mov_in(void* registro_datos,void* registro_direccion)
 {
+    uint32_t direccion_fisica;
+    if(tamanio(registro_direccion) == sizeof(uint8_t))direccion_fisica = traducir_direccion(*(uint8_t*)registro_direccion);
+    else direccion_fisica = traducir_direccion(*(uint32_t*)registro_direccion);
+    
     int comu = LECTURA;
     send(conexion_memoria,&comu,sizeof(int),0);
-    send(conexion_memoria,registro_direccion,sizeof(int),0);
-    send(conexion_memoria,&PID,sizeof(int),0);
-    int tam = tamanio(registro_direccion);
+    send(conexion_memoria,&direccion_fisica,sizeof(int),0);
+    int tam = tamanio(registro_datos);
     send(conexion_memoria,&tam,sizeof(int),0);
+    send(conexion_memoria,&PID,sizeof(int),0);
     
-
-    recv(conexion_memoria,(uint32_t)registro_datos,tam,MSG_WAITALL);
+    if(tam == sizeof(uint8_t))
+    {
+        recv(conexion_memoria,(uint8_t*)registro_datos,tam,MSG_WAITALL);
+        log_info(logger,"PID: <%d> - Acción: <LEER> - Dirección Física: <%u> - Valor: <%u>",PID,direccion_fisica,*(uint8_t*)registro_datos);
+    }
+    else
+    {
+        recv(conexion_memoria,(uint32_t*)registro_datos,tam,MSG_WAITALL);
+        log_info(logger,"PID: <%d> - Acción: <LEER> - Dirección Física: <%u> - Valor: <%u>",PID,direccion_fisica,*(uint32_t*)registro_datos);
+    }
 }
 
 void mov_out(void* registro_datos,void* registro_direccion)
-{
+{   
+    uint32_t direccion_fisica;
+    if(tamanio(registro_direccion) == sizeof(uint8_t))direccion_fisica = traducir_direccion(*(uint8_t*)registro_direccion);
+    else direccion_fisica = traducir_direccion(*(uint32_t*)registro_direccion);
     int comu = ESCRITURA;
     send(conexion_memoria,&comu,sizeof(int),0);
-    send(conexion_memoria,registro_direccion,sizeof(int),0);
-    send(conexion_memoria,&PID,sizeof(int),0);
-    int tam = tamanio(registro_direccion);
+    send(conexion_memoria,&direccion_fisica,sizeof(int),0);
+    int tam = tamanio(registro_datos);
     send(conexion_memoria,&tam,sizeof(int),0);
+    send(conexion_memoria,&PID,sizeof(int),0);
     send (conexion_memoria,registro_datos,tam,0);
 
     recv(conexion_memoria,&comu,sizeof(int),MSG_WAITALL);
+    log_info(logger,"PID: <%d> - Acción: <ESCRIBIR> - Dirección Física: <%u> - Valor: <%u>",PID,direccion_fisica,*(uint32_t*)registro_datos);
 }
 
 void sum(void* destino,void* origen)
@@ -84,8 +100,7 @@ void wait(char* recurso)
     sCall = ESPERAR;
     paquete = crear_paquete();
     agregar_a_paquete(paquete,&sCall,sizeof(int));
-    nombre = recurso;
-    agregar_a_paquete(paquete,nombre,string_length(nombre));
+    agregar_a_paquete(paquete,recurso,string_length(recurso)+1);
     free(recurso);
     sysCall = true;
 }
@@ -95,8 +110,7 @@ void s1gnal(char* recurso)
     sCall = SENIAL;
     paquete = crear_paquete();
     agregar_a_paquete(paquete,&sCall,sizeof(int));
-    nombre = recurso;
-    agregar_a_paquete(paquete,nombre,string_length(nombre));
+    agregar_a_paquete(paquete,recurso,string_length(recurso)+1);
     free(recurso);
     sysCall = true;
 }
@@ -106,6 +120,7 @@ void io_gen_sleep(char* interfaz,int unidad_trabajo)
     sCall = DORMIR;
     paquete = crear_paquete();
     nombre = interfaz;
+    agregar_a_paquete(paquete,&sCall,sizeof(int));
     agregar_a_paquete(paquete,nombre,string_length(nombre));
     agregar_a_paquete(paquete,&unidad_trabajo,sizeof(int));
     free(interfaz);
@@ -129,6 +144,7 @@ void io_stdout_write(char* interfaz,void* registro_direccion,void* registro_tama
 {
     sCall = IO_ESCRIBIR;
     paquete = crear_paquete();
+    agregar_a_paquete(paquete,&sCall,sizeof(int));
     nombre = interfaz;
     agregar_a_paquete(paquete,nombre,string_length(nombre));
     agregar_a_paquete(paquete,(int*)registro_direccion,sizeof(int));
@@ -178,4 +194,30 @@ int tamanio(void* registro)
     if(registro == &CX)return sizeof(uint8_t);
     if(registro == &DX)return sizeof(uint8_t);
     return sizeof(uint32_t);
+}
+
+uint32_t traducir_direccion(int direccion_logica)
+{   
+    int pagina = floor(direccion_logica/tam_pagina);
+
+    int offset = direccion_logica%tam_pagina;
+    int traduccion = obtener_marco(pagina,PID);
+
+    if(traduccion == -1)
+    {
+        log_info(logger,"PID: <%d> - TLB MISS - Pagina: <%d>",PID,pagina);
+        int comu = MARCO;
+
+        send(conexion_memoria,&comu,sizeof(int),0);
+        send(conexion_memoria,&PID,sizeof(int),0);
+        send(conexion_memoria,&pagina,sizeof(int),0);
+
+        recv(conexion_memoria,&traduccion,sizeof(int),MSG_WAITALL);
+
+        log_info(logger,"PID: <%d> - OBTENER MARCO - Página: <%d> - Marco: <%d>",PID,pagina,traduccion);
+        aniadir_entrada_en_tlb(PID,pagina,traduccion);
+    }
+    else log_info(logger, "PID: <%d> - TLB HIT - Pagina: <%d>", PID,pagina);
+
+    return traduccion*tam_pagina + offset;
 }

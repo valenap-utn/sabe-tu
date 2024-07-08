@@ -37,6 +37,8 @@ int main(int argc, char* argv[]) {
 
 
     conexion_memoria = conectar("PUERTO_MEMORIA","IP_MEMORIA");
+
+    recv(conexion_memoria,&tam_pagina,sizeof(int),MSG_WAITALL);
     
     pthread_create(&interrupciones,NULL,(void*)interrupt,NULL);
     pthread_create(&dispatch,NULL,(void*)instrucciones,NULL);
@@ -128,7 +130,7 @@ char* fetch(int conexion)
 	int i = INSTRUCCION;
     send(conexion,&i,sizeof(int),0);
     send(conexion,&PID,sizeof(int),0);
-    send(conexion,&PC,sizeof(int),0);
+    send(conexion,&PC,sizeof(uint32_t),0);
 
     recv(conexion,&i,sizeof(int),MSG_WAITALL);
     char* instruccion = malloc(i*sizeof(char));

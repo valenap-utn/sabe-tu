@@ -18,7 +18,6 @@ struct t_TLBEntry //entrada en TLB
     int pid;
     int pagina;
     int marco;
-    int ultimo_uso; //para LRU
 };
 
 typedef struct t_TLBEntry TLB;
