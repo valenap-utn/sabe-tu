@@ -33,7 +33,7 @@ void mov_in(void* registro_datos,void* registro_direccion)
     }
 }
 
-void mov_out(void* registro_datos,void* registro_direccion)
+void mov_out(void* registro_direccion,void* registro_datos)
 {   
     uint32_t direccion_fisica;
     if(tamanio(registro_direccion) == sizeof(uint8_t))direccion_fisica = traducir_direccion(*(uint8_t*)registro_direccion);
@@ -201,7 +201,7 @@ uint32_t traducir_direccion(int direccion_logica)
     int pagina = floor(direccion_logica/tam_pagina);
 
     int offset = direccion_logica%tam_pagina;
-    int traduccion = obtener_marco(pagina,PID);
+    int traduccion = obtener_marco(PID,pagina);
 
     if(traduccion == -1)
     {

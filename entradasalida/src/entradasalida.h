@@ -6,6 +6,7 @@
 #include <commons/string.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include<readline/readline.h>
 
 enum comunicacion_kernel_tipos{
     GENERICA,

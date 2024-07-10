@@ -196,6 +196,12 @@ bool cmpProcesoId(void *p){return ((proceso *)p)->pid == pid;}
 void comunicacion_kernel(int conexion)
 {
     log_info(logger,"el hilo kernel");
+
+    char *path = config_get_string_value(config,"PATH_INSTRUCCIONES");
+    int tamanio_path = strlen(path);
+
+    send(conexion,&tamanio_path,sizeof(int),0);
+    send(conexion,&path,tamanio_path,0);
     while(1)
     {
         int peticion;
@@ -335,15 +341,15 @@ void iniciar_paginasOcupadas()
 
 char* uint32_to_bytes(uint32_t valor) {
     char *bytes = malloc(sizeof(char)*4);
-    bytes[0] = (valor >> 24) & 0xFF; // Byte más significativo
-    bytes[1] = (valor >> 16) & 0xFF;
-    bytes[2] = (valor >> 8) & 0xFF;
-    bytes[3] = valor & 0xFF; // Byte menos significativo
+    bytes[3] = (valor >> 24) & 0xFF; // Byte más significativo
+    bytes[2] = (valor >> 16) & 0xFF;
+    bytes[1] = (valor >> 8) & 0xFF;
+    bytes[0] = valor & 0xFF; // Byte menos significativo
     return bytes;
 }
 
 uint32_t bytes_to_uint32(const unsigned char bytes[4]) {
-    return ((uint32_t)bytes[0] << 24) | ((uint32_t)bytes[1] << 16) | ((uint32_t)bytes[2] << 8) | bytes[3];
+    return ((uint32_t)bytes[3] << 24) | ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[1] << 8) | bytes[0];
 }
 
 bool modificar_paginas_proceso(proceso* p,int new_tam)
@@ -370,7 +376,7 @@ bool modificar_paginas_proceso(proceso* p,int new_tam)
     else //O reducimos 
     {
         log_info(logger,"PID: <%d> - Tamaño Actual: <%d> - Tamaño a Reducir: <%d>",p->pid,p->tamanio,new_tam);
-        for(int i = list_size(p->paginas);p->tamanio != new_tam ;i--)
+        for(int i = list_size(p->paginas)-1;p->tamanio != new_tam ;i--)
         {
             paginasOcupadas[(int)list_remove(p->paginas,i)] = false;
             paginasLibres++;
@@ -432,7 +438,11 @@ int proximo_marco(int Pid, int actual)
     pthread_mutex_unlock(&mutex_pid);
     
     int i = 0;
-    while((int)list_get(p->paginas,i) != actual)i++;
+    while((int)list_get(p->paginas,i) != actual)
+    {   
+        i++;
+        if(i >= list_size(p->paginas)-1)return -1;
+    }
     return (int)list_get(p->paginas,++i);
 }
 

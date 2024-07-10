@@ -70,10 +70,12 @@ void instrucciones()
         actualizar_registros(conexion_kernel);
         while(interrupcion && !sysCall)
         {
-            char* instruccion = string_replace(fetch(conexion_memoria),"\n","");
+            char* instruccion = fetch(conexion_memoria);
             t_list * ins = decode(instruccion);
             log_info(logger,"PID: <%d> - Ejecutando: <%s>",PID,instruccion);
             execute(ins);
+            free(instruccion);
+            list_destroy(ins);
             PC++;
         }
         devolver_contexto(conexion_kernel);
@@ -134,7 +136,10 @@ char* fetch(int conexion)
 
     recv(conexion,&i,sizeof(int),MSG_WAITALL);
     char* instruccion = malloc(i*sizeof(char));
-	recv(conexion,instruccion,sizeof(char)*i,MSG_WAITALL);
+	
+    recv(conexion,instruccion,sizeof(char)*i,MSG_WAITALL);
+    if('E' != instruccion[0])sprintf(instruccion,"%.*s",i-1,instruccion);
+    else sprintf(instruccion,"%.*s",i,instruccion);
 	return instruccion;
 }
 

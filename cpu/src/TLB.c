@@ -38,7 +38,7 @@ int buscar_en_TLB(int pid, int pagina)
 void aniadir_entrada_en_tlb(int pid, int pagina, int marco)
 {
     //Si no hay entradas libres en la TLB
-    if(list_size(tlb) == cant_entradas_tlb)
+    if(list_size(tlb) == cant_entradas_tlb && cant_entradas_tlb != 0)
     {
         free(list_remove(tlb,0));
     }

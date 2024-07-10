@@ -25,7 +25,6 @@ enum conucicacion_cpu
     FS_ESCRIBIR,
     FS_LEER,
     SALIR,
-    RESIZE,
     OUT_OF_MEMORY
 };
 

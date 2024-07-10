@@ -12,7 +12,7 @@ int main(int argc, char* argv[]){
     // string_append(&log, "entradasalida/");
     string_append(&log,argv[1]);
     string_append(&log,".log");
-    logger = log_create(log,"ENTRADASALIDA",1,LOG_LEVEL_INFO);
+    logger = log_create(log,argv[1],1,LOG_LEVEL_INFO);
 
     log_info(logger,"%s",config_get_string_value(config,"IP_MEMORIA"));
     log_info(logger,"%s",config_get_string_value(config,"PUERTO_MEMORIA"));
@@ -41,6 +41,7 @@ void inter(char *nombre)
     int comunicacion;
     int pid;
     char* output,*input;
+    int ok = 1;
     while(1)
     {
         recv(conexion_kernel,&peticion,sizeof(int),MSG_WAITALL);
@@ -49,16 +50,19 @@ void inter(char *nombre)
             case IO_GEN_SLEEP:
                 int cantidad;
                 recv(conexion_kernel,&cantidad,sizeof(int),MSG_WAITALL);
+                log_info(logger,"PID: <%d> - Operacion: <DORMIR>",pid);
+
                 usleep(config_get_int_value(config,"TIEMPO_UNIDAD_TRABAJO")*cantidad*1000);
 
                 send(conexion_kernel,&cantidad,sizeof(int),0);
             break;
-            case IO_STDOUT_WRITE:
+            case IO_STDIN_READ:
                 recv(conexion_kernel,&direccion,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
-                input = malloc(sizeof(char)*tamanio);
-                for(int i = 0;i < tamanio;i++)input[i] = getchar();
+
+                log_info(logger,"PID: <%d> - Operacion: <LEER>",pid);
+                input = readline(">");
                 comunicacion = ESCRIBIR;
                 send(conexion_memoria,&comunicacion,sizeof(int),0);
                 
@@ -68,14 +72,16 @@ void inter(char *nombre)
                 send(conexion_memoria,input,tamanio,0);
 
                 recv(conexion_memoria,&comunicacion,sizeof(int),MSG_WAITALL);
-                free(input);
+
+                send(conexion_kernel,&ok,sizeof(int),0);
             break;
-            case IO_STDIN_READ:
-                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
+            case IO_STDOUT_WRITE:
+            
                 recv(conexion_kernel,&direccion,sizeof(int),MSG_WAITALL);
+                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
                 
-                
+                log_info(logger,"PID: <%d> - Operacion: <ESCRIBIR>",pid);
                 comunicacion = LEER;
                 send(conexion_memoria,&comunicacion,sizeof(int),0);
                 send(conexion_memoria,&direccion,sizeof(int),0);
@@ -83,9 +89,10 @@ void inter(char *nombre)
                 send(conexion_memoria,&pid,sizeof(int),0);
                 output = malloc(sizeof(char)*tamanio);
                 recv(conexion_memoria,output,tamanio,MSG_WAITALL);
-
+                sprintf(output,"%.*s",tamanio,output);
+                log_info(logger,"%s",output);
                 printf("%s",output);
-                free(output);
+                send(conexion_kernel,&ok,sizeof(int),0);
             break;
             case IO_FS_TRUNCATE:
             

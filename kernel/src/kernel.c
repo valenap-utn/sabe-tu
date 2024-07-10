@@ -17,6 +17,7 @@
 
     sem_t mutex_listas_recursos;
 
+    char *path_scripts;
 
 int main(int argc, char* argv[]){
     
@@ -53,11 +54,28 @@ int main(int argc, char* argv[]){
     conexion_cpu_dispatch = conectar("PUERTO_CPU_DISPATCH","IP_CPU","cpu dispatch");
     conexion_cpu_interrupt = conectar("PUERTO_CPU_INTERRUPT","IP_CPU","cpu interrupt");
 
+    int tamanio_path;
+
+    recv(conexion_memoria,&tamanio_path,sizeof(int),MSG_WAITALL);
+    path_scripts = malloc(sizeof(tamanio_path));
+    recv(conexion_memoria,path_scripts,tamanio_path,MSG_WAITALL);
+
 
     while(1)
     {
         char** comando = iniciarBash();
-        switch (procesar_comando(comando[0]))
+        ejecutar_comando(comando);
+        matar_comando(comando);
+    }
+
+    return 0;
+}
+
+
+void ejecutar_comando(char** comando)
+{
+
+    switch (procesar_comando(comando[0]))
         {
         case INICIAR_PROCESO:
             PCB* pcb = iniciar_pcb(config_get_int_value(config,"QUANTUM"));
@@ -95,16 +113,47 @@ int main(int argc, char* argv[]){
 
         break;
         case EJECUTAR_SCRIPT:
-
+            ejecutar_script(comando[1]); //--------------------- ver si funciona esto...
         break;
         default:
             log_error(logger,"consola mal utilizada");
         break;
-        }
-        matar_comando(comando);
+    }
+}
+
+void ejecutar_script(char* nombre)
+{
+
+    char *path = string_new();
+    string_append(&path,path_scripts);
+    string_append(&path,nombre);
+    FILE* archivo = fopen(path, "r");
+    if(!archivo)
+    {
+        log_error(logger, "Error al abrir el archivo");
+        return;
     }
 
-    return 0;
+    char* line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    while((read = getline(&line, &len, archivo)) != -1)
+    {   
+        if(line[read - 1] == '\n')line[read - 1] = '\0';
+        
+        if(line[0] != '\0')
+        {
+            char** partes_del_comando = string_split(line, " ");
+
+            if(partes_del_comando[0] != NULL)
+            {
+                ejecutar_comando(partes_del_comando);
+                matar_comando(partes_del_comando);
+            }
+        }
+    }
+    fclose(archivo);
 }
 
 
@@ -321,6 +370,9 @@ void operaciones_de_interfaz(interfaz* i)
 
                 send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
                 send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,&op->pcb->pid,sizeof(int),0);
+
+                
             break;
             case IO_LEER:
                 comunicacion = IO_STDIN_READ;
@@ -329,6 +381,7 @@ void operaciones_de_interfaz(interfaz* i)
 
                 send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
                 send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,&op->pcb->pid,sizeof(int),0);
             break;
             case -1:
                 eliminar_interfaz(i);
@@ -526,7 +579,7 @@ void atender_syscall(t_list* lista)
         case IO_ESCRIBIR:
         { 
             char *nombre_int = list_remove(lista,1);
-            i = encontrarInterfaz(nombre_int,GENERICA);
+            i = encontrarInterfaz(nombre_int,STDOUT);
             if(i != NULL)
             {
                 struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
@@ -547,7 +600,7 @@ void atender_syscall(t_list* lista)
         case IO_LEER:
             {
                 char *nombre_int = list_remove(lista,1);
-                i = encontrarInterfaz(nombre_int,GENERICA);
+                i = encontrarInterfaz(nombre_int,STDIN);
                 if(i != NULL)
                 {
                     struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
@@ -669,7 +722,9 @@ void liberar_recursos(PCB* proceso)
     }
     list_remove_element(recursos_por_proceso,recurso_del_proceso);
 
-    dictionary_destroy(recurso_del_proceso->recursos);
+    free(recurso_del_proceso->recursos->elements);
+    free(recurso_del_proceso->recursos);
+    
     free(recurso_del_proceso);
     sem_post(&mutex_listas_recursos);
 }
