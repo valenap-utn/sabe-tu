@@ -5,7 +5,7 @@
     int conexion_cpu_interrupt;
     t_list* interfaces;
     bool cambioDeProceso = true;
-
+    bool interrupted_by_user = false;
     pthread_mutex_t mutex_plani;
 
     sem_t contador_new;
@@ -18,6 +18,7 @@
     sem_t mutex_listas_recursos;
 
     char *path_scripts;
+
 
 int main(int argc, char* argv[]){
     
@@ -74,7 +75,7 @@ int main(int argc, char* argv[]){
 
 void ejecutar_comando(char** comando)
 {
-
+    int multiprogramacion = config_get_int_value(config,"GRADO_MULTIPROGRAMACION");
     switch (procesar_comando(comando[0]))
         {
         case INICIAR_PROCESO:
@@ -99,11 +100,13 @@ void ejecutar_comando(char** comando)
                 int i = 0;
 			    send(conexion_cpu_interrupt,&i,sizeof(int),0);
             }
+            else{
             sacarProcesoDeLista(ready,atoi(comando[1]));
             sacarProcesoDeLista(blocked,atoi(comando[1]));
             sacarProcesoDeLista(new,atoi(comando[1]));
             sem_post(&espacio_en_colas);
             log_info(logger,"Finaliza el proceso <%d> - Motivo: <INTERRUPTED_BY_USER>",atoi(comando[1]));
+            }
         break;
         case INICIAR_PLANIFICACION:
             pthread_mutex_unlock(&mutex_plani);
@@ -112,10 +115,19 @@ void ejecutar_comando(char** comando)
             pthread_mutex_lock(&mutex_plani);
         break;
         case MULTIPROGRAMACION:
+            int nueva = atoi(comando[1]);
 
+            if(nueva > multiprogramacion)for(int i = 0;i < nueva-multiprogramacion;i++)sem_post(&espacio_en_colas);
+            else for(int i = 0;i < multiprogramacion - nueva;i++)sem_post(&espacio_en_colas);
+
+            multiprogramacion = nueva;
         break;
         case PROCESO_ESTADO:
-
+            if(execute)log_info(logger,"Ejecutandose: %d",execute->pid);
+            loggear_lista(new,"New");
+            loggear_lista(ready,"Ready");
+            loggear_lista(readyQuantum,"Ready Priodidad");
+            loggear_lista(blocked,"Bloqueados");
 
         break;
         case EJECUTAR_SCRIPT:
@@ -209,7 +221,7 @@ void planRR(void)
 
         pthread_t interrupciones;
 
-        pthread_create(&interrupciones,NULL,(void*)interrupcionesRR,execute);
+        pthread_create(&interrupciones,NULL,(void*)interrupcionesRR,(void*)execute);
 
         t_list* lista = enviar_al_CPU(execute);
         atender_syscall(lista);
@@ -248,6 +260,7 @@ void planVRR()
             }
             else execute = list_remove(readyQuantum,0);
 
+            log_info(logger,"PID: <%d> - Estado Anterior: <READY> - Estado Actual: <EXECUTE>",execute->pid); 
             cambioDeProceso = false;
         }
 
@@ -259,16 +272,25 @@ void planVRR()
 
         t_list* lista = enviar_al_CPU(execute);
         atender_syscall(lista);
+        
 
-        if(cambioDeProceso)
-        {
-            execute->quantum -= temporal_gettime(quantum);
-            
+        int64_t tiempo = temporal_gettime(quantum);
+        if(execute)
+        {   
+            execute->quantum -= tiempo;
             sem_wait(&mutex_listas);
-            list_remove_element(ready,execute);
-            sem_post(&mutex_listas);
+            if(cambioDeProceso && execute->quantum >= 0 && !esta_bloqueado(execute))
+            {
+                execute->quantum -= tiempo;
 
-            list_add(readyQuantum,execute); //lo ponemos en la de mayor prioridad 
+                list_remove_element(ready,execute);
+
+
+                list_add(readyQuantum,execute); //lo ponemos en la de mayor prioridad 
+                loggear_lista(readyQuantum,"Ready Priodidad");
+            }
+            else execute->quantum = config_get_int_value(config,"QUANTUM");
+            sem_post(&mutex_listas);
         }
 
         temporal_destroy(quantum);
@@ -294,15 +316,21 @@ void planificacionLargoPlazo()
 
         log_info(logger,"PID: <%d> - Estado Anterior: <NEW> - Estado Actual: <READY>",pcb->pid);
 
-        loggear_lista(ready);
+        loggear_lista(ready,"Ready");
         sem_post(&contador_ready);
 	}
 }
 
-void loggear_lista(t_list *lista)
+bool esta_bloqueado(PCB* proceso)
+{
+    bool cmpProcesoId(void *p){return ((PCB*)p)->pid == proceso->pid;}
+    return list_find(blocked,cmpProcesoId);
+}
+void loggear_lista(t_list *lista,char *nombre)
 {
     char* lista_string = string_new();
-    string_append(&lista_string,"Cola Ready: [");
+    string_append(&lista_string,nombre);
+    string_append(&lista_string,": [");
     for(int i = 0;i < list_size(lista);i++)
     {
         PCB* pcb = list_get(lista,i);
@@ -399,7 +427,17 @@ void operaciones_de_interfaz(interfaz* i)
         }
             recv(i->conexion,&comunicacion,sizeof(int),MSG_WAITALL);
             i->libre = true;
-            desbloquearProceso(op->pcb);
+            if(op->pcb->quantum == config_get_int_value(config,"QUANTUM"))desbloquearProceso(op->pcb);
+            else
+            {
+                sem_wait(&mutex_listas);
+	            list_remove_element(blocked,op->pcb);
+                list_add(readyQuantum,op->pcb);
+                sem_post(&mutex_listas);
+                log_info(logger,"PID: <%d> - Estado Anterior: <BLOCKED> - Estado Actual: <READY>",op->pcb->pid);
+                loggear_lista(readyQuantum,"Ready Priodidad");
+                sem_post(&contador_ready);
+            }
     }
 }
 
@@ -418,6 +456,7 @@ void desbloquearProceso(struct PCB* proceso)
 	list_add(ready,proceso);
 	sem_post(&mutex_listas);
 	log_info(logger,"PID: <%d> - Estado Anterior: <BLOCKED> - Estado Actual: <READY>",proceso->pid);
+    loggear_lista(ready,"Ready");
 	sem_post(&contador_ready);
 }
 
@@ -425,6 +464,7 @@ void desbloquearProceso(struct PCB* proceso)
 
 t_list* enviar_al_CPU(PCB* a_ejecutar)
 {
+    int i;
     send(conexion_cpu_dispatch,&(a_ejecutar->pid),sizeof(int),0);
     send(conexion_cpu_dispatch,&(a_ejecutar->PC),sizeof(uint32_t),0);
     send(conexion_cpu_dispatch,&(a_ejecutar->AX),sizeof(uint8_t),0);
@@ -438,23 +478,29 @@ t_list* enviar_al_CPU(PCB* a_ejecutar)
     send(conexion_cpu_dispatch,&(a_ejecutar->SI),sizeof(uint32_t),0);
     send(conexion_cpu_dispatch,&(a_ejecutar->DI),sizeof(uint32_t),0);
 
-    recv(conexion_cpu_dispatch,&(a_ejecutar->PC),sizeof(uint32_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->AX),sizeof(uint8_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->BX),sizeof(uint8_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->CX),sizeof(uint8_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->DX),sizeof(uint8_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->EAX),sizeof(uint32_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->EBX),sizeof(uint32_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->ECX),sizeof(uint32_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->EDX),sizeof(uint32_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->SI),sizeof(uint32_t),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&(a_ejecutar->DI),sizeof(uint32_t),MSG_WAITALL);
-
+    if(execute)
+    {
+        recv(conexion_cpu_dispatch,&(a_ejecutar->PC),sizeof(uint32_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->AX),sizeof(uint8_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->BX),sizeof(uint8_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->CX),sizeof(uint8_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->DX),sizeof(uint8_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->EAX),sizeof(uint32_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->EBX),sizeof(uint32_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->ECX),sizeof(uint32_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->EDX),sizeof(uint32_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->SI),sizeof(uint32_t),MSG_WAITALL);
+        recv(conexion_cpu_dispatch,&(a_ejecutar->DI),sizeof(uint32_t),MSG_WAITALL);
+    }
+    else{
+        for(int i = 0;i < 11;i++)recv(conexion_cpu_dispatch,&i,sizeof(uint32_t),MSG_WAITALL);
+    }
     bool paq;
-    int i;
     recv(conexion_cpu_dispatch,&(paq),sizeof(bool),MSG_WAITALL);
-    recv(conexion_cpu_dispatch,&i,sizeof(int),MSG_WAITALL);
-    if(paq)return recibir_paquete(conexion_cpu_dispatch);
+    if(paq){
+        recv(conexion_cpu_dispatch,&i,sizeof(int),MSG_WAITALL);
+        return recibir_paquete(conexion_cpu_dispatch);
+    }
     return NULL;
 }
 
@@ -471,13 +517,13 @@ void iniciar_planificaciones(void)
 
 }
 
-void interrupcionesRR(PCB proceso)
+void interrupcionesRR(PCB *proceso)
 {
 
 	// pthread_mutex_lock(&para_frenar);
 	// pthread_mutex_unlock(&para_frenar);
-    int i = proceso.pid;
-	usleep(proceso.quantum*1000);
+    int i = proceso->pid;
+	usleep(proceso->quantum*1000);
     if(execute!=NULL)
 	{	
 		if(i == execute->pid)
@@ -496,9 +542,14 @@ void atender_syscall(t_list* lista)
     char* nombre;
     if(lista == NULL)
     {
-        sem_wait(&mutex_listas);
-        list_add(ready,execute);
-        sem_post(&mutex_listas);
+        if(execute)
+        {
+            sem_wait(&mutex_listas);
+            list_add(ready,execute);
+            sem_post(&mutex_listas);
+            loggear_lista(ready,"Ready");
+            sem_post(&contador_ready);
+        }
         return;
     }
     interfaz *i;
@@ -699,6 +750,7 @@ void exit_execute(char * razon)
 		sem_post(&espacio_en_colas);
         log_info(logger,"Finaliza el proceso <%d> - Motivo: <%s>",pid,razon);
         cambioDeProceso = true;
+        execute = NULL;
 
 }
 

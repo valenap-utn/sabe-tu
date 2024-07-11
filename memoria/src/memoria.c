@@ -231,7 +231,6 @@ void comunicacion_kernel(int conexion)
                 modificar_paginas_proceso(p,0);
 
                 list_destroy_and_destroy_elements(p->instrucciones,free);
-                free(p->nombre);
                 free(p);
             }    
             break;
@@ -314,16 +313,16 @@ struct proceso *guardar_proceso(int conexion)
     proceso* p = malloc(sizeof(proceso));
     recv(conexion,&tamanio,sizeof(int),MSG_WAITALL);
     p->instrucciones = list_create();
-    p->nombre = malloc(sizeof(char)*tamanio);
+    char nombre[tamanio];
     p->tamanio = 0;
     p->paginas = list_create();
-    recv(conexion,p->nombre,sizeof(char)*tamanio,MSG_WAITALL);
-    sprintf(p->nombre,"%.*s",tamanio,p->nombre);
+    recv(conexion,nombre,sizeof(char)*tamanio,MSG_WAITALL);
+    sprintf(nombre,"%.*s",tamanio,nombre);
     recv(conexion,&p->pid,sizeof(int),MSG_WAITALL);
 	char *linea = malloc(sizeof(char[50]));
 	char* c = string_new();
 	string_append(&c,config_get_string_value(config,"PATH_INSTRUCCIONES"));
-	string_append(&c,p->nombre);
+	string_append(&c,nombre);
 	FILE *archivo = fopen(c, "r");
     if(!archivo)
     {

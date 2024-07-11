@@ -126,7 +126,7 @@ void io_gen_sleep(char* interfaz,int unidad_trabajo)
     paquete = crear_paquete();
     nombre = interfaz;
     agregar_a_paquete(paquete,&sCall,sizeof(int));
-    agregar_a_paquete(paquete,nombre,string_length(nombre));
+    agregar_a_paquete(paquete,nombre,string_length(nombre)+1);
     agregar_a_paquete(paquete,&unidad_trabajo,sizeof(int));
     free(interfaz);
     sysCall = true;

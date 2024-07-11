@@ -89,7 +89,7 @@ void desbloquearProceso(PCB* proceso);
 
 void planFIFO(void);
 void planRR(void);
-void interrupcionesRR(PCB proceso);
+void interrupcionesRR(PCB *proceso);
 t_list* enviar_al_CPU(PCB* a_ejecutar);
 void iniciar_planificaciones();
 void atender_syscall(t_list* lista);
@@ -97,6 +97,8 @@ void operaciones_de_interfaz(interfaz* i);
 interfaz* encontrarInterfaz(char* nombre,int tipo);
 void exit_execute(char * razon);
 void bloquear_execute(char* nombre);
+bool esta_bloqueado(PCB* proceso);
+
 
 void liberar_recursos(PCB* proceso);
 void memoria_liberar_proceso(int pid);
@@ -107,7 +109,7 @@ bool elProcesoTieneUnrecurso(rec *recu ,char* nombre);
 void sacarPrimerPCB();
 bool encontrar_recursos_del_execute(void *r);
 bool liberar_procesos_bloqueados_por_recursos(char* nombre);
-void loggear_lista(t_list *lista);
+void loggear_lista(t_list *lista,char *nombre);
 void controlar_interfaces();
 
 
