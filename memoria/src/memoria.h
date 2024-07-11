@@ -27,7 +27,7 @@ enum comunicacion_con_cpu
 };
 
 enum comunicacion_io{
-    ESCRIBIR,
+    ESCRIBIR = 1,
     LEER
 };
 struct proceso{
@@ -43,6 +43,7 @@ typedef struct proceso proceso;
 t_list* procesos;
 
 pthread_mutex_t mutex_pid;
+pthread_mutex_t mutex_procesos;
 pthread_t cpu;
 pthread_t io;
 pthread_t kernel;

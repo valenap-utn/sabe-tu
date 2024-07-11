@@ -34,7 +34,8 @@ int main(int argc, char* argv[]) {
     iniciar_paginasOcupadas();
 
     pthread_mutex_init(&mutex_pid,NULL);
-
+    pthread_mutex_init(&mutex_procesos,NULL);
+    
 
 
     espacioDeUsuario = malloc(sizeof(char)*tamanio);
@@ -76,8 +77,9 @@ void comunicacion_cpu(int conexion)
                 pthread_mutex_lock(&mutex_pid);
                 recv(conexion,&pid,sizeof(int),MSG_WAITALL);
                 recv(conexion,&pc,sizeof(uint32_t),MSG_WAITALL);
-
+                pthread_mutex_lock(&mutex_procesos);
                 p = (proceso*)list_find(procesos,cmpProcesoId);
+                pthread_mutex_unlock(&mutex_procesos);
                 pthread_mutex_unlock(&mutex_pid);
                 
                 char* instruccion = string_new();
@@ -97,9 +99,9 @@ void comunicacion_cpu(int conexion)
                 pthread_mutex_lock(&mutex_pid);
                 recv(conexion,&pid,sizeof(int),MSG_WAITALL);
                 recv(conexion,&pagina,sizeof(uint32_t),MSG_WAITALL);
-
+                pthread_mutex_lock(&mutex_procesos);
                 p = (proceso*)list_find(procesos,cmpProcesoId);
-
+                pthread_mutex_unlock(&mutex_procesos);
                 int marco = (int)list_get(p->paginas,pagina);
 
                 log_info(logger,"PID: <%d> - Pagina: <%u> - Marco: <%d>",p->pid,pagina,marco);
@@ -116,7 +118,7 @@ void comunicacion_cpu(int conexion)
                 recv(conexion,&direccion,sizeof(int),MSG_WAITALL);
                 recv(conexion,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion,&pid,sizeof(int),MSG_WAITALL);
-
+                
                 recv(conexion,&mensaje,tamanio,MSG_WAITALL);
                 char *c = uint32_to_bytes(mensaje);
                 recibir_escritura(direccion,tamanio,pid,c);
@@ -151,11 +153,12 @@ void comunicacion_cpu(int conexion)
                 pthread_mutex_lock(&mutex_pid);
                 recv(conexion,&pid,sizeof(int),MSG_WAITALL);
                 recv(conexion,&new_tam,sizeof(int),MSG_WAITALL);
-
+                pthread_mutex_lock(&mutex_procesos);
                 p = (proceso*)list_find(procesos,cmpProcesoId);
                 pthread_mutex_unlock(&mutex_pid);  
                 
                 bool exito = modificar_paginas_proceso(p,new_tam);
+                pthread_mutex_unlock(&mutex_procesos);
 
                 send(conexion,&exito,sizeof(bool),0);
             }    
@@ -167,7 +170,9 @@ void comunicacion_cpu(int conexion)
                 
                 pthread_mutex_lock(&mutex_pid);
                 recv(conexion,&pid,sizeof(int),MSG_WAITALL);
+                pthread_mutex_lock(&mutex_procesos);
                 p = (proceso*)list_find(procesos,cmpProcesoId);
+                pthread_mutex_unlock(&mutex_procesos);
                 pthread_mutex_unlock(&mutex_pid);
                 
                 
@@ -175,10 +180,8 @@ void comunicacion_cpu(int conexion)
                 recv(conexion,&tam,sizeof(int),MSG_WAITALL);
                 recv(conexion,&dirString,sizeof(int),MSG_WAITALL);
 
-                dirString = logicaAFisica(dirString,p);
-                dir = logicaAFisica(dir,p);
 
-                recibir_escritura(dir,tam,p->pid,((char*)espacioDeUsuario)[dirString]);
+                recibir_escritura(dir,tam,p->pid,((char*)espacioDeUsuario)+dirString);
 
                 int confirmacion = 1;
                 send(conexion,&confirmacion,sizeof(int),0);
@@ -201,7 +204,7 @@ void comunicacion_kernel(int conexion)
     int tamanio_path = strlen(path);
 
     send(conexion,&tamanio_path,sizeof(int),0);
-    send(conexion,&path,tamanio_path,0);
+    send(conexion,path,tamanio_path,0);
     while(1)
     {
         int peticion;
@@ -211,8 +214,7 @@ void comunicacion_kernel(int conexion)
         {
             case CREACION:
             {
-                guardar_proceso(conexion);
-
+                if(!guardar_proceso(conexion))peticion = -1;
                 send(conexion,&peticion,sizeof(int),0);
             }    
             break;
@@ -220,9 +222,9 @@ void comunicacion_kernel(int conexion)
             {    
                 pthread_mutex_lock(&mutex_pid);
                 recv(conexion,&pid,sizeof(int),MSG_WAITALL);
-            
+                pthread_mutex_lock(&mutex_procesos);
                 proceso *p = list_remove_by_condition(procesos,cmpProcesoId);
-                
+                pthread_mutex_unlock(&mutex_procesos);
                 log_info(logger,"PID: <%d> - Tamaño: <%d>",p->pid,p->tamanio/tamanio_pags);
                 pthread_mutex_unlock(&mutex_pid);
 
@@ -248,6 +250,7 @@ void comunicacion_io(void)
         responder_handshake(conexion);
         pthread_t hilo;
         pthread_create(&hilo,NULL,atender_io,conexion);
+        pthread_detach(hilo);
     }
 }
 
@@ -299,7 +302,7 @@ void atender_io(int conexion)
             break;
             
             case -1:
-                
+                return;
             break;
         }
     }
@@ -315,19 +318,28 @@ struct proceso *guardar_proceso(int conexion)
     p->tamanio = 0;
     p->paginas = list_create();
     recv(conexion,p->nombre,sizeof(char)*tamanio,MSG_WAITALL);
+    sprintf(p->nombre,"%.*s",tamanio,p->nombre);
     recv(conexion,&p->pid,sizeof(int),MSG_WAITALL);
 	char *linea = malloc(sizeof(char[50]));
 	char* c = string_new();
 	string_append(&c,config_get_string_value(config,"PATH_INSTRUCCIONES"));
 	string_append(&c,p->nombre);
 	FILE *archivo = fopen(c, "r");
+    if(!archivo)
+    {
+        free(p);
+        log_error(logger,"no se encontro el archivo");
+        return NULL;
+    }
 	size_t len = 0;
 	ssize_t read;
  	while((read = getline(&linea, &len, archivo)) != -1){
         list_add(p->instrucciones,linea);
 		linea = malloc(sizeof(char[50]));
 	}
+    pthread_mutex_lock(&mutex_procesos);
 	list_add(procesos,p);
+    pthread_mutex_unlock(&mutex_procesos);
 	fclose(archivo);
     log_info(logger,"PID: <%d> - Tamaño: <0>",p->pid);
 	return p;

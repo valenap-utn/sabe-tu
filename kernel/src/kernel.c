@@ -57,9 +57,9 @@ int main(int argc, char* argv[]){
     int tamanio_path;
 
     recv(conexion_memoria,&tamanio_path,sizeof(int),MSG_WAITALL);
-    path_scripts = malloc(sizeof(tamanio_path));
+    path_scripts = malloc(tamanio_path);
     recv(conexion_memoria,path_scripts,tamanio_path,MSG_WAITALL);
-
+    sprintf(path_scripts,"%.*s",tamanio_path,path_scripts);
 
     while(1)
     {
@@ -79,12 +79,18 @@ void ejecutar_comando(char** comando)
         {
         case INICIAR_PROCESO:
             PCB* pcb = iniciar_pcb(config_get_int_value(config,"QUANTUM"));
-            paquete_a_memoria(comando[1],conexion_memoria,pcb->pid);
-            list_add(new,pcb);
-            log_info(logger,"Se crea el proceso <%d> en NEW",pcb->pid);
-            
-            inicializar_recursos_del_proceso(pcb);
-            sem_post(&contador_new);
+            int exito = paquete_a_memoria(comando[1],conexion_memoria,pcb->pid);
+            if(exito == -1)free(pcb);
+            else
+            {
+                sem_wait(&mutex_listas);
+                list_add(new,pcb);
+                sem_post(&mutex_listas);
+                log_info(logger,"Se crea el proceso <%d> en NEW",pcb->pid);
+                
+                inicializar_recursos_del_proceso(pcb);
+                sem_post(&contador_new);
+            }
 
         break;
         case FINALIZAR_PROCESO:
@@ -360,6 +366,7 @@ void operaciones_de_interfaz(interfaz* i)
 
                 int parametro = (int)op->parametro;
 
+                send(i->conexion,&op->pcb->pid,sizeof(int),0);
                 send(i->conexion,&parametro,sizeof(int),0);
             break;
 
@@ -372,7 +379,7 @@ void operaciones_de_interfaz(interfaz* i)
                 send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
                 send(i->conexion,&op->pcb->pid,sizeof(int),0);
 
-                
+
             break;
             case IO_LEER:
                 comunicacion = IO_STDIN_READ;
@@ -606,8 +613,8 @@ void atender_syscall(t_list* lista)
                     struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
                     op->pcb = execute;
                     op->parametro = list_create();
-                    list_add((t_list*)op->parametro,list_remove(lista,1));
-                    list_add((t_list*)op->parametro,list_remove(lista,1));
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
                     op->operacion = IO_LEER;
 
                     list_add(i->cola,op);

@@ -49,6 +49,7 @@ void inter(char *nombre)
         {
             case IO_GEN_SLEEP:
                 int cantidad;
+                recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&cantidad,sizeof(int),MSG_WAITALL);
                 log_info(logger,"PID: <%d> - Operacion: <DORMIR>",pid);
 
@@ -92,6 +93,7 @@ void inter(char *nombre)
                 sprintf(output,"%.*s",tamanio,output);
                 log_info(logger,"%s",output);
                 printf("%s",output);
+                
                 send(conexion_kernel,&ok,sizeof(int),0);
             break;
             case IO_FS_TRUNCATE:

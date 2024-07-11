@@ -16,7 +16,7 @@ enum comunicacion_kernel_tipos{
 };
 
 enum comunicacion_io{
-    ESCRIBIR,
+    ESCRIBIR = 1,
     LEER
 };
 

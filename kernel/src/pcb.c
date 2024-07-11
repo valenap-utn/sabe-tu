@@ -48,7 +48,7 @@ void matar_comando(char** comando)
     string_array_destroy(comando);
 }
 
-void paquete_a_memoria(char* comando,int conexion,int pid)
+int paquete_a_memoria(char* comando,int conexion,int pid)
 {
     int i = CREACION;
     send(conexion,&i,sizeof(int),0);
@@ -58,4 +58,5 @@ void paquete_a_memoria(char* comando,int conexion,int pid)
     send(conexion,&pid,sizeof(int),0);
 
     recv(conexion,&i,sizeof(int),MSG_WAITALL);
+    return i;
 }

@@ -46,6 +46,6 @@ char** iniciarBash();
 int procesar_comando(char* comando);
 PCB *iniciar_pcb(int quantum);
 void matar_comando(char** comando);
-void paquete_a_memoria(char* comando,int conexion,int pid);
+int paquete_a_memoria(char* comando,int conexion,int pid);
 
 #endif
