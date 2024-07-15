@@ -3,6 +3,8 @@
 int sCall;
 int tam_pagina;
 char* nombre;
+char* nombre2;
+
 void set(void* registro, uint32_t valor)
 {
     if(tamanio(registro) == sizeof(uint8_t))*(uint8_t*)registro = valor;
@@ -168,30 +170,68 @@ void io_stdout_write(char* interfaz,void* registro_direccion,void* registro_tama
     sysCall = true;
 }
 
-void io_fs_create(char* interfaz,void* nombre_archivo)
+void io_fs_create(char* interfaz,char* nombre_archivo)
 {
-    //
+    sCall = CREAR;
+    agregar_a_paquete(paquete,&sCall,sizeof(int));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    free(interfaz);
+    free(nombre_archivo);
+    sysCall = true;
+}   
+
+void io_fs_delete(char* interfaz,char* nombre_archivo)
+{
+    sCall = BORRAR;
+    agregar_a_paquete(paquete,&sCall,sizeof(int));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    free(interfaz);
+    free(nombre_archivo);
+    sysCall = true;
 }
 
-void io_fs_delete(char* interfaz,void* nombre_archivo)
+void io_fs_truncate(char* interfaz,char* nombre_archivo,void* registro_tamanio)
 {
-    //
+    sCall = TRUNCAR;
+    agregar_a_paquete(paquete,&sCall,sizeof(int));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    agregar_a_paquete(paquete,(int*)registro_tamanio,tamanio(registro_tamanio));
+    free(interfaz);
+    free(nombre_archivo);
+    sysCall = true;
 }
 
-void io_fs_truncate(char* interfaz,void* nombre_archivo,void* registro_tamanio)
+void io_fs_write(char* interfaz,char* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo)
 {
-    //
+    sCall = FS_ESCRIBIR;
+    agregar_a_paquete(paquete,&sCall,sizeof(int));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    agregar_a_paquete(paquete,(int*)registro_direccion,tamanio(registro_direccion));
+    agregar_a_paquete(paquete,(int*)registro_tamanio,tamanio(registro_tamanio));
+    agregar_a_paquete(paquete,(int*)registro_puntero_archivo,tamanio(registro_puntero_archivo));
+    free(interfaz);
+    free(nombre_archivo);
+    sysCall = true;
 }
 
-void io_fs_write(char* interfaz,void* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo)
+void io_fs_read(char* interfaz,char* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo)
 {
-    //
+    sCall = FS_LEER;
+    agregar_a_paquete(paquete,&sCall,sizeof(int));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    agregar_a_paquete(paquete,(int*)registro_direccion,tamanio(registro_direccion));
+    agregar_a_paquete(paquete,(int*)registro_tamanio,tamanio(registro_tamanio));
+    agregar_a_paquete(paquete,(int*)registro_puntero_archivo,tamanio(registro_puntero_archivo));
+    free(interfaz);
+    free(nombre_archivo);
+    sysCall = true;
 }
 
-void io_fs_read(char* interfaz,void* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo)
-{
-    //
-}
 
 void salir()
 {

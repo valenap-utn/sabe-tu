@@ -118,7 +118,7 @@ void ejecutar_comando(char** comando)
             int nueva = atoi(comando[1]);
 
             if(nueva > multiprogramacion)for(int i = 0;i < nueva-multiprogramacion;i++)sem_post(&espacio_en_colas);
-            else for(int i = 0;i < multiprogramacion - nueva;i++)sem_post(&espacio_en_colas);
+            else for(int i = 0;i < multiprogramacion - nueva;i++)sem_wait(&espacio_en_colas);
 
             multiprogramacion = nueva;
         break;
@@ -384,7 +384,9 @@ void operaciones_de_interfaz(interfaz* i)
     {
         sem_wait(&i->trigger);
 
-        int comunicacion;
+        int comunicacion, tamanio;
+        char* nombre_archivo;
+
         struct cola_de_operaciones *op = list_remove(i->cola,0);
         switch (op->operacion)
         {
@@ -414,12 +416,59 @@ void operaciones_de_interfaz(interfaz* i)
                 send(i->conexion,&comunicacion,sizeof(int),0);
                 
 
+                send(i->conexion,&comunicacion,sizeof(int),0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+
+            break;
+            case -1:
+                eliminar_interfaz(i);
+            break;
+            case CREAR:
+                comunicacion = IO_FS_CREATE;
+                tamanio = strlen((char*)op->parametro);
+                send(i->conexion,&comunicacion,sizeof(int),0);
+                send(i->conexion,&tamanio,sizeof(int),0);
+                send(i->conexion,op->parametro,tamanio,0);
+                send(i->conexion,&op->pcb->pid,sizeof(int),0);
+            break;
+            case BORRAR:
+                comunicacion = IO_FS_DELETE;
+                tamanio = strlen((char*)op->parametro);
+                send(i->conexion,&comunicacion,sizeof(int),0);
+                send(i->conexion,&tamanio,sizeof(int),0);
+                send(i->conexion,op->parametro,tamanio,0);
+                send(i->conexion,&op->pcb->pid,sizeof(int),0);
+            break;
+            case TRUNCAR:
+                comunicacion = IO_FS_DELETE;
+                tamanio = strlen((char*),list_get((t_list*)op->parametro,0));
+                send(i->conexion,&comunicacion,sizeof(int),0);
+                send(i->conexion,&tamanio,sizeof(int),0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),tamanio,0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,&op->pcb->pid,sizeof(int),0);
+            break;
+            case FS_LEER:
+                comunicacion = IO_FS_READ;
+                tamanio = strlen((char*),list_get((t_list*)op->parametro,0));
+                send(i->conexion,&comunicacion,sizeof(int),0);
+                send(i->conexion,&tamanio,sizeof(int),0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),tamanio,0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
                 send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
                 send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
                 send(i->conexion,&op->pcb->pid,sizeof(int),0);
             break;
-            case -1:
-                eliminar_interfaz(i);
+            case FS_ESCRIBIR:
+                comunicacion = IO_FS_WRITE;
+                tamanio = strlen((char*),list_get((t_list*)op->parametro,0));
+                send(i->conexion,&comunicacion,sizeof(int),0);
+                send(i->conexion,&tamanio,sizeof(int),0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),tamanio,0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,&op->pcb->pid,sizeof(int),0);
             break;
             default:
 
@@ -676,6 +725,112 @@ void atender_syscall(t_list* lista)
                 }
             }
         break;
+        case CREAR:
+        {
+            char *nombre_int = list_remove(lista,1);
+            i = encontrarInterfaz(nombre_int,DIALFS);
+            if(i != NULL)
+            {
+                struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
+                op->pcb = execute;
+                op->parametro = list_remove(lista,1);
+                op->operacion = CREAR;
+
+                list_add(i->cola,op);
+
+                bloquear_execute(nombre_int);
+
+                sem_post(&i->trigger);
+            }
+        }
+            break;
+            case BORRAR:
+        {
+            char *nombre_int = list_remove(lista,1);
+            i = encontrarInterfaz(nombre_int,DIALFS);
+            if(i != NULL)
+            {
+                struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
+                op->pcb = execute;
+                op->parametro = list_remove(lista,1);
+                op->operacion = BORRAR;
+
+                list_add(i->cola,op);
+
+                bloquear_execute(nombre_int);
+
+                sem_post(&i->trigger);
+            }
+        }
+            break;
+            case TRUNCAR:
+        {
+            char *nombre_int = list_remove(lista,1);
+            i = encontrarInterfaz(nombre_int,DIALFS);
+            if(i != NULL)
+            {
+                struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
+                op->pcb = execute;
+                op->parametro = list_create();
+                list_add((t_list*)(op->parametro),list_remove(lista,1));
+                list_add((t_list*)(op->parametro),list_remove(lista,1));
+                op->operacion = TRUNCAR;
+
+                list_add(i->cola,op);
+
+                bloquear_execute(nombre_int);
+
+                sem_post(&i->trigger);
+            }
+        }
+
+            break;
+            case FS_LEER:
+            {
+                char *nombre_int = list_remove(lista,1);
+                i = encontrarInterfaz(nombre_int,DIALFS);
+                if(i != NULL)
+                {
+                    struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
+                    op->pcb = execute;
+                    op->parametro = list_create();
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
+                    op->operacion = FS_LEER;
+
+                    list_add(i->cola,op);
+
+                    bloquear_execute(nombre_int);
+
+                    sem_post(&i->trigger);
+                }
+            }
+            break;
+            case FS_ESCRIBIR:
+            {
+                char *nombre_int = list_remove(lista,1);
+                i = encontrarInterfaz(nombre_int,DIALFS);
+                if(i != NULL)
+                {
+                    struct cola_de_operaciones* op = malloc(sizeof(struct cola_de_operaciones));
+                    op->pcb = execute;
+                    op->parametro = list_create();
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
+                    list_add((t_list*)(op->parametro),list_remove(lista,1));
+                    op->operacion = FS_LEER;
+
+                    list_add(i->cola,op);
+
+                    bloquear_execute(nombre_int);
+
+                    sem_post(&i->trigger);
+                }
+            }
+            break;
     }
 }
 

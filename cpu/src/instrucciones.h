@@ -57,11 +57,11 @@ void s1gnal(char* recurso);
 void io_gen_sleep(char* interfaz,int unidad_trabajo);
 void io_stdin_read(char* interfaz,void* registro_direccion,void* registro_tamanio);
 void io_stdout_write(char* interfaz,void* registro_direccion,void* registro_tamanio);
-void io_fs_create(char* interfaz,void* nombre_archivo);
-void io_fs_delete(char* interfaz,void* nombre_archivo);
-void io_fs_truncate(char* interfaz,void* nombre_archivo,void* registro_tamanio);
-void io_fs_write(char* interfaz,void* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo);
-void io_fs_read(char* interfaz,void* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo);
+void io_fs_create(char* interfaz,char* nombre_archivo);
+void io_fs_delete(char* interfaz,char* nombre_archivo);
+void io_fs_truncate(char* interfaz,char* nombre_archivo,void* registro_tamanio);
+void io_fs_write(char* interfaz,char* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo);
+void io_fs_read(char* interfaz,char* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo);
 void salir();
 int tamanio(void* registro);
 

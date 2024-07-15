@@ -284,8 +284,12 @@ void list_add_trad1_strAReg2y3(t_list* operandos, char* traduccion1, char* tradu
 } 
 
 void list_add_trad1y2(t_list* operandos, char* traduccion1, char* traduccion2){
-    list_add(operandos,(void*)traduccion1);
-	list_add(operandos,(void*)traduccion2);
+    char *c1 = string_new();
+    string_append(&c1,traduccion1);
+    char *c2 = string_new();
+    string_append(&c2,traduccion2);
+    list_add(operandos,(void*)c1);
+	list_add(operandos,(void*)c2);
 } 
 
 void list_add_strAReg34y5(t_list* operandos, char* traduccion3, char* traduccion4, char* traduccion5){
