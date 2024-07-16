@@ -45,26 +45,29 @@ struct archivo{
 typedef struct archivo archivo;
 
 void inter(int conexion_kernel);
-void interfs(int conexion_kernel);
+void interfs();
 int tipoInter(char* s);
+
 void inicializar_bloques(char* path_bloques);
 void inicializar_bitmap(char* path_bitmap);
-int asignar_espacio(archivo *archivo,int tamanio,int pid);
+int asignar_espacio(archivo *archivo,int tamanio,int pid, int bloques_libres);
 int cargar_bitmap(char* path);
 
 void liberar_espacio(int bloque_inicial, int tamanio_actual, int tamanio_final);
 void vaciar_bloque(int bloque);
 void cargar_bloques(char* path);
 
-void actualizar_archivo_bloques(char* path);
-void actualizar_archivo_bitmap(char* path);
+void actualizar_archivo_bloques();
+void actualizar_archivo_bitmap();
+
 void compactacion(archivo* archivo1,int pid);
 void compactar_bitmap(int bloques_ocupados);
+
 bool bloque_inicial_archivo(void* archivo1,void* archivo2);
 bool comparar_archivo(void* archivo1);
 void vaciar_bloque(int bloque);
-void compactar_bitmap(int bloques_ocupados);
-bool bloque_inicial_archivo(void* archivo1, void* archivo2);
-void actualizar_archivo_bitmap(char* path);
-void actualizar_archivo_bloques(char* path);
+
+void actualizar_bitmap(int inicial_limpiar, int tamanio_limpiar, int inicial_settear, int tamanio_settear);
+void actualizar_metadata(archivo* archivo);
+
 #endif 

@@ -9,7 +9,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/bin/${workspaceFolderBasename}",
       "args": [
-        "MONITOR"
+        "FS"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

@@ -14,6 +14,8 @@ int block_size;
 
 int inicial_a_asignar = 0;
 
+int conexion_kernel;
+
 int main(int argc, char* argv[]){
     
     char *con = string_new();
@@ -35,7 +37,7 @@ int main(int argc, char* argv[]){
     char* nombreBis = string_new();
     string_append(&nombreBis,argv[1]);
     string_append(&nombreBis,"\0");
-    int conexion_kernel = conectar("PUERTO_KERNEL","IP_KERNEL");
+    conexion_kernel = conectar("PUERTO_KERNEL","IP_KERNEL");
     int tipo = tipoInter(config_get_string_value(config,"TIPO_INTERFAZ"));
     int largoNombre = string_length(nombreBis);
     send(conexion_kernel,&tipo,sizeof(int),0);
@@ -43,10 +45,11 @@ int main(int argc, char* argv[]){
     send(conexion_kernel,nombreBis,sizeof(char)*largoNombre,0);
 
     // se crea una interfaz
-    if(tipo == DIALFS)interfs(conexion_kernel);
+    if(tipo == DIALFS)interfs();
     inter(conexion_kernel);
     return 0;
 }
+
 
 void inter(int conexion_kernel)
 {
@@ -112,15 +115,17 @@ void inter(int conexion_kernel)
     }
 }
 
-char* nombre_archivo;
 
-void interfs(int conexion_kernel)
+char nombre_archivo[20];
+
+void interfs()
 {
     block_size = config_get_int_value(config,"BLOCK_SIZE");
     char* path_bloques = string_new();
-    string_append(path_bloques,config_get_string_value(config,"PATH_BASE_DIALFS"));
+    string_append(&path_bloques,config_get_string_value(config,"PATH_BASE_DIALFS"));
     char* path_bitmap = string_duplicate(path_bloques);
-    string_append(path_bloques,"bloques.dat");
+    string_append(&path_bloques,"bloques.dat");
+    string_append(&path_bitmap,"bitmap.dat");
     FILE *bloques = fopen(path_bloques,"rb");
     FILE *bitmap = fopen(path_bitmap,"rb");
     if(!bloques)inicializar_bloques(path_bloques);
@@ -130,14 +135,13 @@ void interfs(int conexion_kernel)
 
     archivos = list_create();
 
-
+    bitmap_global = malloc(config_get_int_value(config,"BLOCK_COUNT")/8);
     bits = bitarray_create(bitmap_global,config_get_int_value(config,"BLOCK_COUNT"));
     int bloques_libres = cargar_bitmap(path_bitmap);
     cargar_bloques(path_bloques);
 
     
     int peticion,tamanio,direccion,puntero,comunicacion, pid;
-    char* nombre_archivo;
     t_config *metadata;
     char* path;
     archivo *archivo;
@@ -149,33 +153,30 @@ void interfs(int conexion_kernel)
         {
             case IO_FS_CREATE:
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,&nombre_archivo,tamanio,MSG_WAITALL);
+                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
                 int bloque_inicial = inicial_a_asignar;
                 inicial_a_asignar += 3;
-                path = string_new();
-                string_append(path,config_get_string_value(config,"PATH_BASE_DIALFS"));
-                string_append(path,nombre_archivo);
-                metadata = config_create(path);
-                char* bi;
-                sprintf(bi,"%d",bloque_inicial);
-                config_set_value(metadata,"BLOQUE_INICIAL",bi);
-                config_set_value(metadata,"TAMANIO","0");
-                config_save(metadata);
-                config_destroy(metadata);
 
                 archivo = malloc(sizeof(archivo));
                 archivo->bloque_inicial = bloque_inicial;
                 archivo->tamanio = 0;
+
+
                 char* nombre = string_new();
                 string_append(&nombre,nombre_archivo);
                 archivo->nombre = nombre;
 
-                log_info(logger, "PID: <%d> - Crear Archivo: <%s>", pid, nombre_archivo);            
+                list_add(archivos,archivo);
+
+                bloques_libres--;
+                actualizar_metadata(archivo);
+
+                log_info(logger, "PID: <%d> - Crear Archivo: <%s>", pid, nombre);          
                 break;
             case IO_FS_DELETE:
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,&nombre_archivo,tamanio,MSG_WAITALL);
+                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
 
                 
@@ -183,31 +184,38 @@ void interfs(int conexion_kernel)
 
                 liberar_espacio(archivo->bloque_inicial,archivo->tamanio,0);
                 
+                bloques_libres += archivo->tamanio / block_size +1;
                 free(archivo->nombre);
                 free(archivo);
 
                 path = string_new();
-                string_append(path,config_get_string_value(config,"PATH_BASE_DIALFS"));
-                string_append(path,nombre_archivo);
+                string_append(&path,config_get_string_value(config,"PATH_BASE_DIALFS"));
+                string_append(&path,nombre_archivo);
                 remove(path);
                 log_info(logger,"PID: <%d> - Eliminar Archivo: <%s>",pid,nombre_archivo);
             break;
             case IO_FS_TRUNCATE:
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,&nombre_archivo,tamanio,MSG_WAITALL);
+                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
 
                 archivo = list_find(archivos,comparar_archivo);
 
-                if(archivo->tamanio > tamanio)liberar_espacio(archivo->bloque_inicial,archivo->tamanio,tamanio);
-                else asignar_espacio(archivo,tamanio,pid);
 
-                char *n_tamanio;
+                if(archivo->tamanio > tamanio)liberar_espacio(archivo->bloque_inicial,archivo->tamanio,tamanio);
+                else asignar_espacio(archivo,tamanio,pid,bloques_libres);
+
+                bloques_libres += (archivo->tamanio - tamanio)/block_size +1;
+
+                archivo->tamanio = tamanio;
+
+
+                char n_tamanio[3];
                 sprintf(n_tamanio,"%d",tamanio);
                 path = string_new();
-                string_append(path,config_get_string_value(config,"PATH_BASE_DIALFS"));
-                string_append(path,nombre_archivo);
+                string_append(&path,config_get_string_value(config,"PATH_BASE_DIALFS"));
+                string_append(&path,nombre_archivo);
 
                 config_set_value(metadata,"TAMANIO",n_tamanio);
                 config_save(metadata);
@@ -216,7 +224,7 @@ void interfs(int conexion_kernel)
             break;
             case IO_FS_READ:
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,&nombre_archivo,tamanio,MSG_WAITALL);
+                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&direccion,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&puntero,sizeof(int),MSG_WAITALL);
@@ -236,7 +244,7 @@ void interfs(int conexion_kernel)
             break;
             case IO_FS_WRITE:
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,&nombre_archivo,tamanio,MSG_WAITALL);
+                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&direccion,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&puntero,sizeof(int),MSG_WAITALL);
@@ -255,9 +263,9 @@ void interfs(int conexion_kernel)
                 log_info(logger,"PID: <%d> - Escribir Archivo: <%s> - Tamaño a Escirbir: <%d> - Puntero Archivo: <%d>",pid,nombre_archivo,tamanio,puntero);
             break;
         }
-        actualizar_archivo_bloques(path_bloques);
-        actualizar_archivo_bitmap(path_bitmap);
         send(conexion_kernel,&ok,sizeof(int),0);
+        actualizar_archivo_bloques();
+        actualizar_archivo_bitmap();
     }
 }
 
@@ -287,6 +295,7 @@ void inicializar_bloques(char* path_bloques)
     int cero = 0;
     int tamanio = config_get_int_value(config,"BLOCK_COUNT")*block_size;
     for(int i = 0;i < tamanio;i++)fwrite(&cero,sizeof(int),1,bloques);
+    fclose(bloques);
 }
 
 void inicializar_bitmap(char* path_bitmap)
@@ -294,27 +303,66 @@ void inicializar_bitmap(char* path_bitmap)
     FILE* bitmap = fopen(path_bitmap,"wb");
     int cero = 0;
     int tamanio = config_get_int_value(config,"BLOCK_COUNT")/8;
-    for(int i = 0;i < tamanio;i++)fwrite(&cero,sizeof(int),1,bitmap);
+    for(int i = 0;i < tamanio;i++)fwrite(&cero,sizeof(char),1,bitmap);
+    fclose(bitmap);
 }
 
-int asignar_espacio(archivo *archivo,int tamanio,int pid)
+int asignar_espacio(archivo *archivo,int tamanio,int pid,int bloques_libres)
 {
-    int contador = floor(archivo->tamanio/block_size) + 1;
-    int bloques = tamanio/block_size + 1;
-    int i = archivo->bloque_inicial + contador;
-    while(bitarray_test_bit(bits, i))
+    int contador = 0;
+    int bloques = (int)ceil(tamanio/block_size);
+    int i = 0;
+    while(contador < bloques && i < bitarray_get_max_bit(bits))
     {   
-        contador++;
+        if(bitarray_test_bit(bits,i))contador = 0;
+        else contador++;
         i++;
     }
     if(contador < bloques)
     {
-        compactacion(archivo,pid);
-        return asignar_espacio(archivo,tamanio,pid);
+        if(bloques_libres > bloques)
+        {
+            compactacion(archivo,pid);
+            return asignar_espacio(archivo,tamanio,pid,bloques_libres);
+        }
+    }
+    else
+    {
+        sprintf(&archivo_bloques[(i - bloques)*block_size],"%.*s",archivo->tamanio,&archivo_bloques[archivo->bloque_inicial*block_size]);
+        actualizar_bitmap(archivo->bloque_inicial,(int)ceil(archivo->tamanio/block_size),i - bloques,(int)ceil(tamanio/block_size));
+        archivo->tamanio = tamanio;
+        archivo->bloque_inicial = i -bloques;
+        actualizar_metadata(archivo);
     }
     return i - bloques;
 }
 
+void actualizar_bitmap(int inicial_limpiar,int tamanio_limpiar,int inicial_settear,int tamanio_settear)
+{
+    for(int i = 0;i < tamanio_limpiar;i++)bitarray_clean_bit(bits,inicial_limpiar+i);
+    for(int i = 0;i < tamanio_settear;i++)bitarray_set_bit(bits,inicial_settear+i);
+}
+
+void actualizar_metadata(archivo *arch)
+{
+        char* path = string_new();
+        string_append(&path,config_get_string_value(config,"PATH_BASE_DIALFS"));
+        string_append(&path,arch->nombre);
+        
+        FILE *f = fopen(path,"w");
+        fclose(f);
+        t_config *metadata = config_create(path);
+        char* bi = malloc(4);
+        sprintf(bi,"%d",arch->bloque_inicial);
+        config_set_value(metadata,"BLOQUE_INICIAL",bi);
+        sprintf(bi,"%d",arch->tamanio);
+        config_set_value(metadata,"TAMANIO",bi);
+        config_save(metadata);
+        config_destroy(metadata);
+
+        free(bi);
+        free(path);
+}
 
 int cargar_bitmap(char* path)
 {
@@ -323,7 +371,9 @@ int cargar_bitmap(char* path)
     int byte, bloques_libres = 0;
     int byteDescompuesto[8];
     fread(&byte,1,1,bitmap);
-    for(int numeroByte = 0;byte != EOF;numeroByte++)
+
+
+    for(int numeroByte = 0;numeroByte < bitarray_get_max_bit(bits)/8;numeroByte++)
     {
         descomponerByte(byte,byteDescompuesto);
         for(int numeroBit =0;numeroBit< 7;numeroBit++)
@@ -337,6 +387,7 @@ int cargar_bitmap(char* path)
         }
         fread(&byte,1,1,bitmap);
     }
+    fclose(bitmap);
     return bloques_libres;
 }
 
@@ -373,20 +424,29 @@ void cargar_bloques(char* path)
     fclose(bloques);
 }
 
-void actualizar_archivo_bloques(char* path)
+void actualizar_archivo_bloques()
 {
+    char* path_bloques = string_new();
+    string_append(&path_bloques,config_get_string_value(config,"PATH_BASE_DIALFS"));
+    string_append(&path_bloques,"bloques.dat");
     int tamanio = block_size*config_get_int_value(config,"BLOCK_COUNT");
-    FILE* bloques = fopen(path,"wb");
+    FILE* bloques = fopen(path_bloques,"wb");
     fwrite(archivo_bloques,tamanio,1,bloques);
+    free(path_bloques);
     fclose(bloques);
+
 }
 
 
-void actualizar_archivo_bitmap(char* path)
+void actualizar_archivo_bitmap()
 {
+    char* path_bitmap = string_new();
+    string_append(&path_bitmap,config_get_string_value(config,"PATH_BASE_DIALFS"));
+    string_append(&path_bitmap,"bitmap.dat");
     int tamanio = config_get_int_value(config,"BLOCK_COUNT")/8;
-    FILE* bitmap = fopen(path,"wb");
+    FILE* bitmap = fopen(path_bitmap,"wb");
     fwrite(bitmap_global,tamanio,1,bitmap);
+    free(path_bitmap);
     fclose(bitmap);
 }
 
@@ -403,26 +463,16 @@ void compactacion(archivo* archivo1,int pid)
         archivo *a_compactar = list_get(archivos,i);
         sprintf(&archivo_bloques[nuevo_bloque_inicial*block_size],"%.*s",a_compactar->tamanio,&archivo_bloques[a_compactar->bloque_inicial]);
         
-        for(int i =0;i < a_compactar->tamanio/block_size + 1;i++)vaciar_bloque(a_compactar->bloque_inicial + i);
-        
-        char* path = string_new();
-        string_append(path,config_get_string_value(config,"PATH_BASE_DIALFS"));
-        string_append(path,a_compactar->nombre);
-        
-        t_config *metadata = config_create(path);
-        char* bi;
-        sprintf(bi,"%d",nuevo_bloque_inicial);
-        config_set_value(metadata,"BLOQUE_INICIAL",bi);
-        config_save(metadata);
-        config_destroy(metadata);
+        for(int i =0;i < (int)ceil(a_compactar->tamanio/block_size);i++)vaciar_bloque(a_compactar->bloque_inicial + i);
         
         a_compactar->bloque_inicial = nuevo_bloque_inicial;
-        nuevo_bloque_inicial += a_compactar->tamanio/block_size + 1;
-        free(path);
+
+        actualizar_metadata(a_compactar);
+        nuevo_bloque_inicial += (int)ceil(a_compactar->tamanio/block_size);
     }
     archivo1->bloque_inicial = nuevo_bloque_inicial;
     sprintf(&archivo_bloques[nuevo_bloque_inicial*block_size],"%.*s",archivo1->tamanio,archivo_principal);
-    compactar_bitmap(nuevo_bloque_inicial + archivo1->tamanio/block_size +1);
+    compactar_bitmap(nuevo_bloque_inicial + (int)ceil(archivo1->tamanio/block_size));
 
     usleep(config_get_int_value(config, "RETRASO_COMPACTACION") * 1000);
     
