@@ -72,14 +72,16 @@ void inter(int conexion_kernel)
                 send(conexion_kernel,&cantidad,sizeof(int),0);
             break;
             case IO_STDIN_READ:
+               
                 recv(conexion_kernel,&direccion,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
+                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
 
                 log_info(logger,"PID: <%d> - Operacion: <LEER>",pid);
                 input = readline(">");
                 comunicacion = ESCRIBIR;
                 send(conexion_memoria,&comunicacion,sizeof(int),0);
+                
                 
                 send(conexion_memoria,&direccion,sizeof(int),0);
                 send(conexion_memoria,&tamanio,sizeof(int),0);
@@ -149,11 +151,21 @@ void interfs()
     while(1)
     {
         recv(conexion_kernel,&peticion,sizeof(int),MSG_WAITALL);
+        recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
+        recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
+
+        archivo = list_find(archivos,comparar_archivo);
+
+        if(!archivo)
+        {
+            sumar_a_la_lista(nombre_archivo);
+            archivo = list_find(archivos,comparar_archivo);
+        }
+
         switch(peticion)
         {
+            
             case IO_FS_CREATE:
-                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
                 
 
@@ -176,12 +188,10 @@ void interfs()
                 log_info(logger, "PID: <%d> - Crear Archivo: <%s>", pid, nombre);          
                 break;
             case IO_FS_DELETE:
-                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
 
                 
-                archivo= list_find(archivos,comparar_archivo);
+                list_remove_element(archivos,archivo);
 
                 liberar_espacio(archivo->bloque_inicial,archivo->tamanio,0);
                 
@@ -197,11 +207,8 @@ void interfs()
             break;
             case IO_FS_TRUNCATE:
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
-                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
 
-                archivo = list_find(archivos,comparar_archivo);
 
 
                 if(archivo->tamanio > tamanio)liberar_espacio(archivo->bloque_inicial,archivo->tamanio,tamanio);
@@ -216,15 +223,14 @@ void interfs()
                 log_info(logger,"PID: <%d> - Truncar Archivo: <%s> - Tamaño: <%d>",pid,nombre_archivo,tamanio);
             break;
             case IO_FS_READ:
-                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
-                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
+
                 recv(conexion_kernel,&direccion,sizeof(int),MSG_WAITALL);
+                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
+                
                 recv(conexion_kernel,&puntero,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
 
 
-                archivo = list_find(archivos,comparar_archivo);
 
                 comunicacion = ESCRIBIR;
                 send(conexion_memoria,&comunicacion,sizeof(int),0);
@@ -236,14 +242,12 @@ void interfs()
                 log_info(logger,"PID: <%d> - Leer Archivo: <%s> - Tamaño a Leer: <%d> - Puntero Archivo: <%d>",pid,nombre_archivo,tamanio,puntero);
             break;
             case IO_FS_WRITE:
-                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
-                recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
+
                 recv(conexion_kernel,&direccion,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&puntero,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
 
-                archivo = list_find(archivos,comparar_archivo);
 
 
                 comunicacion = LEER;
@@ -263,7 +267,23 @@ void interfs()
 }
 
 
+void sumar_a_la_lista(char *nombre_archivo)
+{
+    char* path = string_new();
+    string_append(&path,config_get_string_value(config,"PATH_BASE_DIALFS"));
+    string_append(&path,nombre_archivo);
 
+    t_config *metadata = config_create(path);
+    if(metadata)
+    {
+        archivo *a = malloc(sizeof(archivo));
+        a->nombre = nombre_archivo;
+        a->bloque_inicial = config_get_int_value(metadata,"BLOQUE_INICIAL");
+        a->tamanio = config_get_double_value(metadata,"TAMANIO");
+
+        list_add(archivos,a);
+    }
+}
 
 bool comparar_archivo(void* archivo1)
 {
@@ -303,7 +323,7 @@ void inicializar_bitmap(char* path_bitmap)
 int asignar_espacio(archivo *archivo,int tamanio,int pid,int bloques_libres)
 {
     int contador = 0;
-    int bloques = (int)ceil(tamanio/block_size);
+    int bloques = (int)ceil((double)tamanio/block_size);
     int i = 0;
     while(contador < bloques && i < block_count)
     {   
@@ -322,7 +342,7 @@ int asignar_espacio(archivo *archivo,int tamanio,int pid,int bloques_libres)
     else
     {
         sprintf(&archivo_bloques[(i - bloques)*block_size],"%.*s",archivo->tamanio,&archivo_bloques[archivo->bloque_inicial*block_size]);
-        actualizar_bitmap(archivo->bloque_inicial,(int)ceil(archivo->tamanio/block_size),i - bloques,(int)ceil(tamanio/block_size));
+        actualizar_bitmap(archivo->bloque_inicial,(int)ceil(archivo->tamanio/block_size),i - bloques,(int)ceil((double)tamanio/block_size));
         archivo->tamanio = tamanio;
         archivo->bloque_inicial = i -bloques;
         actualizar_metadata(archivo);
@@ -346,10 +366,10 @@ void actualizar_metadata(archivo *arch)
         FILE *f = fopen(path,"w");
         fclose(f);
         t_config *metadata = config_create(path);
-        char* bi = malloc(4);
+        char* bi = malloc(10);
         sprintf(bi,"%d",arch->bloque_inicial);
         config_set_value(metadata,"BLOQUE_INICIAL",bi);
-        sprintf(bi,"%d",arch->tamanio);
+        sprintf(bi,"%f",arch->tamanio);
         config_set_value(metadata,"TAMANIO",bi);
         config_save(metadata);
         config_destroy(metadata);
@@ -375,7 +395,7 @@ int cargar_bitmap(char* path)
             if(byteDescompuesto[numeroBit])bitarray_set_bit(bits,numeroByte+numeroBit);
             else 
             {
-                bitarray_clean_bit(bits,numeroByte+numeroBit);
+                bitarray_clean_bit(bits,numeroByte*8+numeroBit);
                 bloques_libres++;
             }
         }
@@ -448,25 +468,29 @@ void compactacion(archivo* archivo1,int pid)
 {
     log_info(logger,"PID: <%d> - Inicio Compactación.",pid);
     list_remove_element(archivos,archivo1);
-    char archivo_principal[archivo1->tamanio /block_size];
+    char archivo_principal[(int)archivo1->tamanio /block_size];
     sprintf(archivo_principal,"%.*s",archivo1->tamanio,&archivo_bloques[archivo1->bloque_inicial*block_size]);
     list_sort(archivos,bloque_inicial_archivo);
     int nuevo_bloque_inicial =0;
     for(int i = 0;i < list_size(archivos);i++)
     {
         archivo *a_compactar = list_get(archivos,i);
-        sprintf(&archivo_bloques[nuevo_bloque_inicial*block_size],"%.*s",a_compactar->tamanio,&archivo_bloques[a_compactar->bloque_inicial]);
+
         
-        for(int i =0;i < (int)ceil(a_compactar->tamanio/block_size);i++)vaciar_bloque(a_compactar->bloque_inicial + i);
+        pasar_pagina(nuevo_bloque_inicial,a_compactar);
         
         a_compactar->bloque_inicial = nuevo_bloque_inicial;
 
         actualizar_metadata(a_compactar);
         nuevo_bloque_inicial += (int)ceil(a_compactar->tamanio/block_size);
     }
+
     archivo1->bloque_inicial = nuevo_bloque_inicial;
     sprintf(&archivo_bloques[nuevo_bloque_inicial*block_size],"%.*s",archivo1->tamanio,archivo_principal);
-    compactar_bitmap(nuevo_bloque_inicial + (int)ceil(archivo1->tamanio/block_size));
+    int bloques_ocupados = nuevo_bloque_inicial + (int)ceil(archivo1->tamanio/block_size);
+    compactar_bitmap(bloques_ocupados);
+
+    for(int i =0;i < block_count - bloques_ocupados;i++)vaciar_bloque(bloques_ocupados + i + 1);
 
     usleep(config_get_int_value(config, "RETRASO_COMPACTACION") * 1000);
     
@@ -487,4 +511,13 @@ int bloque_inicial()
     int i = 0;
     while(i < block_count && bitarray_test_bit(bits,i))i++;
     return i;
+}
+
+void pasar_pagina(int new_bloque_inicial,archivo *arch)
+{
+    int bloques = ceil(arch->tamanio / block_size);
+    for(int i = 0;i < bloques*block_size;i++)
+    {
+        archivo_bloques[new_bloque_inicial*block_size + i] = archivo_bloques[arch->bloque_inicial*block_size + i];
+    }
 }

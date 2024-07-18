@@ -39,7 +39,7 @@ typedef struct interfaz interfaz;
 struct archivo{
     char* nombre;
     int bloque_inicial;
-    int tamanio;
+    double tamanio;
 };
 
 typedef struct archivo archivo;
@@ -63,8 +63,12 @@ void actualizar_archivo_bitmap();
 
 void compactacion(archivo* archivo1,int pid);
 void compactar_bitmap(int bloques_ocupados);
+void pasar_pagina(int new_bloque_inicial,archivo *arch);
 
 bool bloque_inicial_archivo(void* archivo1,void* archivo2);
+
+void sumar_a_la_lista(char *nombre_archivo);
+
 bool comparar_archivo(void* archivo1);
 void vaciar_bloque(int bloque);
 

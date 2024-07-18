@@ -582,7 +582,7 @@ void interrupcionesRR(PCB *proceso)
 	usleep(proceso->quantum*1000);
     if(execute!=NULL)
 	{	
-		if(i == execute->pid && list_any_satisfy(ready,cmpExecute))
+		if(i == execute->pid && !list_any_satisfy(blocked,cmpExecute))
 		{
             i = 0;
 			send(conexion_cpu_interrupt,&i,sizeof(int),0);
