@@ -172,10 +172,11 @@ void io_stdout_write(char* interfaz,void* registro_direccion,void* registro_tama
 
 void io_fs_create(char* interfaz,char* nombre_archivo)
 {
+    paquete = crear_paquete();
     sCall = CREAR;
     agregar_a_paquete(paquete,&sCall,sizeof(int));
-    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
-    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz) +1);
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo)+1);
     free(interfaz);
     free(nombre_archivo);
     sysCall = true;
@@ -183,10 +184,11 @@ void io_fs_create(char* interfaz,char* nombre_archivo)
 
 void io_fs_delete(char* interfaz,char* nombre_archivo)
 {
+    paquete = crear_paquete();
     sCall = BORRAR;
     agregar_a_paquete(paquete,&sCall,sizeof(int));
-    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
-    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz)+1);
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo)+1);
     free(interfaz);
     free(nombre_archivo);
     sysCall = true;
@@ -194,10 +196,11 @@ void io_fs_delete(char* interfaz,char* nombre_archivo)
 
 void io_fs_truncate(char* interfaz,char* nombre_archivo,void* registro_tamanio)
 {
+    paquete = crear_paquete();
     sCall = TRUNCAR;
     agregar_a_paquete(paquete,&sCall,sizeof(int));
-    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
-    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz)+1);
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo)+1);
     agregar_a_paquete(paquete,(int*)registro_tamanio,tamanio(registro_tamanio));
     free(interfaz);
     free(nombre_archivo);
@@ -206,10 +209,11 @@ void io_fs_truncate(char* interfaz,char* nombre_archivo,void* registro_tamanio)
 
 void io_fs_write(char* interfaz,char* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo)
 {
+    paquete = crear_paquete();
     sCall = FS_ESCRIBIR;
     agregar_a_paquete(paquete,&sCall,sizeof(int));
-    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
-    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz)+1);
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo)+1);
     agregar_a_paquete(paquete,(int*)registro_direccion,tamanio(registro_direccion));
     agregar_a_paquete(paquete,(int*)registro_tamanio,tamanio(registro_tamanio));
     agregar_a_paquete(paquete,(int*)registro_puntero_archivo,tamanio(registro_puntero_archivo));
@@ -220,10 +224,11 @@ void io_fs_write(char* interfaz,char* nombre_archivo,void* registro_direccion,vo
 
 void io_fs_read(char* interfaz,char* nombre_archivo,void* registro_direccion,void* registro_tamanio,void* registro_puntero_archivo)
 {
+    paquete = crear_paquete();
     sCall = FS_LEER;
     agregar_a_paquete(paquete,&sCall,sizeof(int));
-    agregar_a_paquete(paquete,interfaz,string_length(interfaz));
-    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo));
+    agregar_a_paquete(paquete,interfaz,string_length(interfaz)+1);
+    agregar_a_paquete(paquete,nombre_archivo,string_length(nombre_archivo)+1);
     agregar_a_paquete(paquete,(int*)registro_direccion,tamanio(registro_direccion));
     agregar_a_paquete(paquete,(int*)registro_tamanio,tamanio(registro_tamanio));
     agregar_a_paquete(paquete,(int*)registro_puntero_archivo,tamanio(registro_puntero_archivo));

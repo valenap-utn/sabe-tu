@@ -52,6 +52,7 @@ void inicializar_bloques(char* path_bloques);
 void inicializar_bitmap(char* path_bitmap);
 int asignar_espacio(archivo *archivo,int tamanio,int pid, int bloques_libres);
 int cargar_bitmap(char* path);
+int bloque_inicial();
 
 void liberar_espacio(int bloque_inicial, int tamanio_actual, int tamanio_final);
 void vaciar_bloque(int bloque);

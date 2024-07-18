@@ -413,11 +413,12 @@ void operaciones_de_interfaz(interfaz* i)
             break;
             case IO_LEER:
                 comunicacion = IO_STDIN_READ;
-                send(i->conexion,&comunicacion,sizeof(int),0);
                 
 
                 send(i->conexion,&comunicacion,sizeof(int),0);
                 send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,list_remove((t_list*)op->parametro,0),sizeof(int),0);
+                send(i->conexion,&op->pcb->pid,sizeof(int),0);
 
             break;
             case -1:
@@ -425,7 +426,7 @@ void operaciones_de_interfaz(interfaz* i)
             break;
             case CREAR:
                 comunicacion = IO_FS_CREATE;
-                tamanio = strlen((char*)op->parametro);
+                tamanio = strlen((char*)op->parametro) + 1;
                 send(i->conexion,&comunicacion,sizeof(int),0);
                 send(i->conexion,&tamanio,sizeof(int),0);
                 send(i->conexion,op->parametro,tamanio,0);
@@ -433,15 +434,15 @@ void operaciones_de_interfaz(interfaz* i)
             break;
             case BORRAR:
                 comunicacion = IO_FS_DELETE;
-                tamanio = strlen((char*)op->parametro);
+                tamanio = strlen((char*)op->parametro) + 1;
                 send(i->conexion,&comunicacion,sizeof(int),0);
                 send(i->conexion,&tamanio,sizeof(int),0);
                 send(i->conexion,op->parametro,tamanio,0);
                 send(i->conexion,&op->pcb->pid,sizeof(int),0);
             break;
             case TRUNCAR:
-                comunicacion = IO_FS_DELETE;
-                tamanio = strlen((char*),list_get((t_list*)op->parametro,0));
+                comunicacion = IO_FS_TRUNCATE;
+                tamanio = strlen((char*)list_get((t_list*)op->parametro,0)) +1 ;
                 send(i->conexion,&comunicacion,sizeof(int),0);
                 send(i->conexion,&tamanio,sizeof(int),0);
                 send(i->conexion,list_remove((t_list*)op->parametro,0),tamanio,0);
@@ -450,7 +451,7 @@ void operaciones_de_interfaz(interfaz* i)
             break;
             case FS_LEER:
                 comunicacion = IO_FS_READ;
-                tamanio = strlen((char*),list_get((t_list*)op->parametro,0));
+                tamanio = strlen((char*)list_get((t_list*)op->parametro,0)) + 1;
                 send(i->conexion,&comunicacion,sizeof(int),0);
                 send(i->conexion,&tamanio,sizeof(int),0);
                 send(i->conexion,list_remove((t_list*)op->parametro,0),tamanio,0);
@@ -461,7 +462,7 @@ void operaciones_de_interfaz(interfaz* i)
             break;
             case FS_ESCRIBIR:
                 comunicacion = IO_FS_WRITE;
-                tamanio = strlen((char*),list_get((t_list*)op->parametro,0));
+                tamanio = strlen((char*)list_get((t_list*)op->parametro,0))+1;
                 send(i->conexion,&comunicacion,sizeof(int),0);
                 send(i->conexion,&tamanio,sizeof(int),0);
                 send(i->conexion,list_remove((t_list*)op->parametro,0),tamanio,0);
@@ -572,10 +573,16 @@ void interrupcionesRR(PCB *proceso)
 	// pthread_mutex_lock(&para_frenar);
 	// pthread_mutex_unlock(&para_frenar);
     int i = proceso->pid;
+
+    bool cmpExecute(void* p)
+    {
+        return ((PCB*)p)->pid == i;
+    }
+
 	usleep(proceso->quantum*1000);
     if(execute!=NULL)
 	{	
-		if(i == execute->pid)
+		if(i == execute->pid && list_any_satisfy(ready,cmpExecute))
 		{
             i = 0;
 			send(conexion_cpu_interrupt,&i,sizeof(int),0);
@@ -821,7 +828,7 @@ void atender_syscall(t_list* lista)
                     list_add((t_list*)(op->parametro),list_remove(lista,1));
                     list_add((t_list*)(op->parametro),list_remove(lista,1));
                     list_add((t_list*)(op->parametro),list_remove(lista,1));
-                    op->operacion = FS_LEER;
+                    op->operacion = FS_ESCRIBIR;
 
                     list_add(i->cola,op);
 

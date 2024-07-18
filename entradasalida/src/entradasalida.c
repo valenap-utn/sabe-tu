@@ -11,8 +11,7 @@ t_list* archivos;
 char* archivo_bloques;
 
 int block_size;
-
-int inicial_a_asignar = 0;
+int block_count;
 
 int conexion_kernel;
 
@@ -121,6 +120,7 @@ char nombre_archivo[20];
 void interfs()
 {
     block_size = config_get_int_value(config,"BLOCK_SIZE");
+    block_count = config_get_int_value(config,"BLOCK_COUNT");
     char* path_bloques = string_new();
     string_append(&path_bloques,config_get_string_value(config,"PATH_BASE_DIALFS"));
     char* path_bitmap = string_duplicate(path_bloques);
@@ -135,8 +135,8 @@ void interfs()
 
     archivos = list_create();
 
-    bitmap_global = malloc(config_get_int_value(config,"BLOCK_COUNT")/8);
-    bits = bitarray_create(bitmap_global,config_get_int_value(config,"BLOCK_COUNT"));
+    bitmap_global = malloc(block_count/8);
+    bits = bitarray_create(bitmap_global,block_count);
     int bloques_libres = cargar_bitmap(path_bitmap);
     cargar_bloques(path_bloques);
 
@@ -155,12 +155,13 @@ void interfs()
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
-                int bloque_inicial = inicial_a_asignar;
-                inicial_a_asignar += 3;
+                
 
                 archivo = malloc(sizeof(archivo));
-                archivo->bloque_inicial = bloque_inicial;
+                archivo->bloque_inicial = bloque_inicial();
                 archivo->tamanio = 0;
+
+                bitarray_set_bit(bits,archivo->bloque_inicial);
 
 
                 char* nombre = string_new();
@@ -211,15 +212,7 @@ void interfs()
                 archivo->tamanio = tamanio;
 
 
-                char n_tamanio[3];
-                sprintf(n_tamanio,"%d",tamanio);
-                path = string_new();
-                string_append(&path,config_get_string_value(config,"PATH_BASE_DIALFS"));
-                string_append(&path,nombre_archivo);
-
-                config_set_value(metadata,"TAMANIO",n_tamanio);
-                config_save(metadata);
-                config_destroy(metadata);
+                actualizar_metadata(archivo);
                 log_info(logger,"PID: <%d> - Truncar Archivo: <%s> - Tamaño: <%d>",pid,nombre_archivo,tamanio);
             break;
             case IO_FS_READ:
@@ -245,8 +238,8 @@ void interfs()
             case IO_FS_WRITE:
                 recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
-                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&direccion,sizeof(int),MSG_WAITALL);
+                recv(conexion_kernel,&tamanio,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&puntero,sizeof(int),MSG_WAITALL);
                 recv(conexion_kernel,&pid,sizeof(int),MSG_WAITALL);
 
@@ -293,7 +286,7 @@ void inicializar_bloques(char* path_bloques)
 {
     FILE* bloques = fopen(path_bloques,"wb");
     int cero = 0;
-    int tamanio = config_get_int_value(config,"BLOCK_COUNT")*block_size;
+    int tamanio = block_count*block_size;
     for(int i = 0;i < tamanio;i++)fwrite(&cero,sizeof(int),1,bloques);
     fclose(bloques);
 }
@@ -302,7 +295,7 @@ void inicializar_bitmap(char* path_bitmap)
 {
     FILE* bitmap = fopen(path_bitmap,"wb");
     int cero = 0;
-    int tamanio = config_get_int_value(config,"BLOCK_COUNT")/8;
+    int tamanio = block_count/8;
     for(int i = 0;i < tamanio;i++)fwrite(&cero,sizeof(char),1,bitmap);
     fclose(bitmap);
 }
@@ -312,7 +305,7 @@ int asignar_espacio(archivo *archivo,int tamanio,int pid,int bloques_libres)
     int contador = 0;
     int bloques = (int)ceil(tamanio/block_size);
     int i = 0;
-    while(contador < bloques && i < bitarray_get_max_bit(bits))
+    while(contador < bloques && i < block_count)
     {   
         if(bitarray_test_bit(bits,i))contador = 0;
         else contador++;
@@ -339,6 +332,7 @@ int asignar_espacio(archivo *archivo,int tamanio,int pid,int bloques_libres)
 
 void actualizar_bitmap(int inicial_limpiar,int tamanio_limpiar,int inicial_settear,int tamanio_settear)
 {
+    if(!tamanio_limpiar)tamanio_limpiar++;
     for(int i = 0;i < tamanio_limpiar;i++)bitarray_clean_bit(bits,inicial_limpiar+i);
     for(int i = 0;i < tamanio_settear;i++)bitarray_set_bit(bits,inicial_settear+i);
 }
@@ -373,10 +367,10 @@ int cargar_bitmap(char* path)
     fread(&byte,1,1,bitmap);
 
 
-    for(int numeroByte = 0;numeroByte < bitarray_get_max_bit(bits)/8;numeroByte++)
+    for(int numeroByte = 0;numeroByte < block_count/8;numeroByte++)
     {
         descomponerByte(byte,byteDescompuesto);
-        for(int numeroBit =0;numeroBit< 7;numeroBit++)
+        for(int numeroBit =0;numeroBit< 8;numeroBit++)
         {
             if(byteDescompuesto[numeroBit])bitarray_set_bit(bits,numeroByte+numeroBit);
             else 
@@ -417,7 +411,7 @@ void vaciar_bloque(int bloque)
 
 void cargar_bloques(char* path)
 {
-    int tamanio = block_size*config_get_int_value(config,"BLOCK_COUNT");
+    int tamanio = block_size*block_count;
     archivo_bloques = malloc(tamanio);
     FILE* bloques = fopen(path,"rb");
     fread(archivo_bloques,tamanio,1,bloques);
@@ -429,7 +423,7 @@ void actualizar_archivo_bloques()
     char* path_bloques = string_new();
     string_append(&path_bloques,config_get_string_value(config,"PATH_BASE_DIALFS"));
     string_append(&path_bloques,"bloques.dat");
-    int tamanio = block_size*config_get_int_value(config,"BLOCK_COUNT");
+    int tamanio = block_size*block_count;
     FILE* bloques = fopen(path_bloques,"wb");
     fwrite(archivo_bloques,tamanio,1,bloques);
     free(path_bloques);
@@ -443,7 +437,7 @@ void actualizar_archivo_bitmap()
     char* path_bitmap = string_new();
     string_append(&path_bitmap,config_get_string_value(config,"PATH_BASE_DIALFS"));
     string_append(&path_bitmap,"bitmap.dat");
-    int tamanio = config_get_int_value(config,"BLOCK_COUNT")/8;
+    int tamanio = block_count/8;
     FILE* bitmap = fopen(path_bitmap,"wb");
     fwrite(bitmap_global,tamanio,1,bitmap);
     free(path_bitmap);
@@ -482,9 +476,15 @@ void compactacion(archivo* archivo1,int pid)
 void compactar_bitmap(int bloques_ocupados)
 {
     for(int i = 0; i < bloques_ocupados;i++)bitarray_set_bit(bits,i);
-    for(int i = bloques_ocupados; i < bitarray_get_max_bit(bits);i++)bitarray_clean_bit(bits,i);
+    for(int i = bloques_ocupados; i < block_count;i++)bitarray_clean_bit(bits,i);
 }
 bool bloque_inicial_archivo(void* archivo1, void* archivo2){
     return ((archivo*)archivo1)->bloque_inicial < ((archivo*)archivo2)->bloque_inicial;
 }
 
+int bloque_inicial()
+{
+    int i = 0;
+    while(i < block_count && bitarray_test_bit(bits,i))i++;
+    return i;
+}
