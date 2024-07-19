@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include<commons/bitarray.h>
 #include<math.h>
+#include<dirent.h>
 
 enum comunicacion_kernel_tipos{
     GENERICA,

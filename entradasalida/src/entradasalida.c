@@ -142,7 +142,7 @@ void interfs()
     int bloques_libres = cargar_bitmap(path_bitmap);
     cargar_bloques(path_bloques);
 
-    
+    cargar_archivos();
     int peticion,tamanio,direccion,puntero,comunicacion, pid;
     t_config *metadata;
     char* path;
@@ -155,12 +155,6 @@ void interfs()
         recv(conexion_kernel,nombre_archivo,tamanio,MSG_WAITALL);
 
         archivo = list_find(archivos,comparar_archivo);
-
-        if(!archivo)
-        {
-            sumar_a_la_lista(nombre_archivo);
-            archivo = list_find(archivos,comparar_archivo);
-        }
 
         switch(peticion)
         {
@@ -283,6 +277,7 @@ void sumar_a_la_lista(char *nombre_archivo)
 
         list_add(archivos,a);
     }
+    free(path);
 }
 
 bool comparar_archivo(void* archivo1)
@@ -519,5 +514,20 @@ void pasar_pagina(int new_bloque_inicial,archivo *arch)
     for(int i = 0;i < bloques*block_size;i++)
     {
         archivo_bloques[new_bloque_inicial*block_size + i] = archivo_bloques[arch->bloque_inicial*block_size + i];
+    }
+}
+
+void cargar_archivos()
+{
+    char *ruta = string_new();
+    string_append(&ruta,config_get_string_value(config,"PATH_BASE_DIALFS"));
+    DIR* directorio = opendir(ruta);
+    struct dirent *entrada;
+    while ((entrada = readdir(directorio)) != NULL)
+    {
+        if(strcmp(entrada->d_name,"bitmap.dat") && strcmp(entrada->d_name,"bloques.dat") && strcmp(entrada->d_name,"..") && strcmp(entrada->d_name,"."))
+        {
+            sumar_a_la_lista(entrada->d_name);
+        }
     }
 }
