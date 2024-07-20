@@ -71,12 +71,12 @@ void instrucciones()
         while(interrupcion && !sysCall)
         {
             char* instruccion = fetch(conexion_memoria);
+            PC++;
             t_list * ins = decode(instruccion);
             log_info(logger,"PID: <%d> - Ejecutando: <%s>",PID,instruccion);
             execute(ins);
             free(instruccion);
             list_destroy(ins);
-            PC++;
         }
         devolver_contexto(conexion_kernel);
         interrupcion = 1;

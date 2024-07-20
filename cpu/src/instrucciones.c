@@ -27,7 +27,7 @@ void mov_in(void* registro_datos,void* registro_direccion)
     if(tam == sizeof(uint8_t))
     {
         recv(conexion_memoria,(uint8_t*)registro_datos,tam,MSG_WAITALL);
-        log_info(logger,"PID: <%d> - Acción: <LEER> - Dirección Física: <%u> - Valor: <%u>",PID,direccion_fisica,*(uint8_t*)registro_datos);
+        log_info(logger,"PID: <%d> - Acción: <LEER> - Dirección Física: <%u> - Valor: <%hhu>",PID,direccion_fisica,*(uint8_t*)registro_datos);
     }
     else
     {
@@ -51,23 +51,35 @@ void mov_out(void* registro_direccion,void* registro_datos)
 
     recv(conexion_memoria,&comu,sizeof(int),MSG_WAITALL);
 
-    if(tamanio(registro_direccion) == sizeof(uint8_t)) log_info(logger,"PID: <%d> - Acción: <ESCRIBIR> - Dirección Física: <%u> - Valor: <%u>",PID,direccion_fisica,*(uint8_t*)registro_datos);
+    if(tamanio(registro_direccion) == sizeof(uint8_t)) log_info(logger,"PID: <%d> - Acción: <ESCRIBIR> - Dirección Física: <%u> - Valor: <%hhu>",PID,direccion_fisica,*(uint8_t*)registro_datos);
     else log_info(logger,"PID: <%d> - Acción: <ESCRIBIR> - Dirección Física: <%u> - Valor: <%u>",PID,direccion_fisica,*(uint32_t*)registro_datos);
 } 
 
 void sum(void* destino,void* origen)
 {
-    *(uint32_t*)destino += *(uint32_t*)origen;
+    int tamanio_destino = tamanio(destino);
+    int tamanio_origen = tamanio(origen);
+    if(tamanio_destino+ tamanio_origen == sizeof(uint32_t)*2)*(uint32_t*)destino += *(uint32_t*)origen;
+    if(tamanio_destino + tamanio_origen == sizeof(uint8_t)*2)*(uint8_t*)destino += *(uint8_t*)origen;
+    if(tamanio_destino == sizeof(uint32_t) && tamanio_origen == sizeof(uint8_t))*(uint32_t*)destino += *(uint8_t*)origen;
+    if(tamanio_destino == sizeof(uint8_t) && tamanio_origen == sizeof(uint32_t))*(uint8_t*)destino += *(uint32_t*)origen;
 }
 
 void sub(void* destino,void* origen)
 {
-    *(uint32_t*)destino -= *(uint32_t*)origen;
+    int tamanio_destino = tamanio(destino);
+    int tamanio_origen = tamanio(origen);
+    if(tamanio_destino+ tamanio_origen == sizeof(uint32_t)*2)*(uint32_t*)destino -= *(uint32_t*)origen;
+    if(tamanio_destino + tamanio_origen == sizeof(uint8_t)*2)*(uint8_t*)destino -= *(uint8_t*)origen;
+    if(tamanio_destino == sizeof(uint32_t) && tamanio_origen == sizeof(uint8_t))*(uint32_t*)destino -= *(uint8_t*)origen;
+    if(tamanio_destino == sizeof(uint8_t) && tamanio_origen == sizeof(uint32_t))*(uint8_t*)destino -= *(uint32_t*)origen;
 }
 
 void jnz(void* registro,uint32_t ins)
 {
-    if(*(uint32_t*)registro == 0)PC = ins;
+
+    if(tamanio(registro) == sizeof(uint32_t))if(*(uint32_t*)registro == 0)PC = ins;
+    else if(*(uint8_t*)registro == 0)PC = ins;
 }
 
 void resize(int tamanio)
@@ -86,6 +98,7 @@ void resize(int tamanio)
         agregar_a_paquete(paquete,&sCall,sizeof(int));
         sysCall = true;
     }
+    if(!tamanio)limpiar_tlb(PID);
 }
 
 void copy_string(void* tamanio)

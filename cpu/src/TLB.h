@@ -32,6 +32,7 @@ extern int conexion_memoria;
 int buscar_en_TLB(int pid, int pagina);
 void aniadir_entrada_en_tlb(int pid, int pagina, int marco);
 int  obtener_marco(int pid,int pagina);
+void limpiar_tlb(int PID);
 
 
 #endif

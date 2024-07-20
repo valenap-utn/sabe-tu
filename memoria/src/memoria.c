@@ -231,6 +231,7 @@ void comunicacion_kernel(int conexion)
                 modificar_paginas_proceso(p,0);
 
                 list_destroy_and_destroy_elements(p->instrucciones,free);
+                list_destroy(p->paginas);
                 free(p);
             }    
             break;
@@ -324,6 +325,7 @@ struct proceso *guardar_proceso(int conexion)
 	string_append(&c,config_get_string_value(config,"PATH_INSTRUCCIONES"));
 	string_append(&c,nombre);
 	FILE *archivo = fopen(c, "r");
+    free(c);
     if(!archivo)
     {
         free(p);
@@ -449,11 +451,9 @@ int proximo_marco(int Pid, int actual)
     pthread_mutex_unlock(&mutex_pid);
     
     int i = 0;
-    while((int)list_get(p->paginas,i) != actual)
-    {   
-        i++;
-        if(i >= list_size(p->paginas)-1)return -1;
-    }
+    while((int)list_get(p->paginas,i) != actual)i++;
+
+    if(i == list_size(p->paginas) - 1)return - 1;
     return (int)list_get(p->paginas,++i);
 }
 

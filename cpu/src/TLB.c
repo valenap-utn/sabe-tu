@@ -61,3 +61,12 @@ int  obtener_marco(int pid, int pagina)
     if(entrada == NULL) return -1;
     else return entrada->marco;
 }
+
+void limpiar_tlb(int PID)
+{
+    bool son_del_proceso(void* entrada)
+    {
+        return ((TLB*)entrada)->pid == PID;
+    }
+    list_remove_and_destroy_by_condition(tlb,son_del_proceso,free);
+}
