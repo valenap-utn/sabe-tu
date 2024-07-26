@@ -260,25 +260,27 @@ void interfs()
     }
 }
 
-
 void sumar_a_la_lista(char *nombre_archivo)
 {
     char* path = string_new();
     string_append(&path,config_get_string_value(config,"PATH_BASE_DIALFS"));
     string_append(&path,nombre_archivo);
+    char *nombre = string_new();
+    string_append(&nombre,nombre_archivo);
 
     t_config *metadata = config_create(path);
     if(metadata)
     {
         archivo *a = malloc(sizeof(archivo));
-        a->nombre = nombre_archivo;
+        a->nombre = nombre;
         a->bloque_inicial = config_get_int_value(metadata,"BLOQUE_INICIAL");
         a->tamanio = config_get_double_value(metadata,"TAMANIO");
-
+        log_info(logger,"%s",nombre_archivo);
         list_add(archivos,a);
     }
     free(path);
 }
+
 
 bool comparar_archivo(void* archivo1)
 {
