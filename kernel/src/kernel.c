@@ -95,11 +95,14 @@ void ejecutar_comando(char** comando)
 
         break;
         case FINALIZAR_PROCESO:
-            if(execute != NULL)if(execute->pid == atoi(comando[1])){
-                exit_execute("INTERRUPTED_BY_USER");
-                int i = 0;
+            if(execute != NULL)
+		{
+			if(execute->pid == atoi(comando[1])){
+                	exit_execute("INTERRUPTED_BY_USER");
+                	int i = 0;
 			    send(conexion_cpu_interrupt,&i,sizeof(int),0);
-            }
+            	}
+	}
             else{
             sacarProcesoDeLista(ready,atoi(comando[1]));
             sacarProcesoDeLista(blocked,atoi(comando[1]));
@@ -882,6 +885,7 @@ void bloquear_execute(char* nombre)
 	log_info(logger,"PID: <%d> - Estado Anterior: <EXECUTE> - Estado Actual: <BLOCKED>",execute->pid);
 	log_info(logger,"PID: <%d> - Bloqueado por: <%s>",execute->pid,nombre);
     cambioDeProceso = true;
+	execute = NULL;
 }
 
 interfaz* encontrarInterfaz(char* nombre,int tipo)
