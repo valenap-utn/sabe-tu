@@ -59,7 +59,11 @@ int  obtener_marco(int pid, int pagina)
     }
     TLB* entrada = list_find(tlb,encontrar_entrada);
     if(entrada == NULL) return -1;
-    else return entrada->marco;
+	if(strcmp(config_get_string_value(config,"ALGORITMO_TLB"),"LRU") == 0){
+	list_remove_element(tlb,entrada);
+	list_add(tlb,entrada);
+	}
+     return entrada->marco;
 }
 
 void limpiar_tlb(int PID)
