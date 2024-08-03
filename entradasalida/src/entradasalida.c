@@ -441,11 +441,11 @@ void actualizar_archivo_bloques()
     char* path_bloques = string_new();
     string_append(&path_bloques,config_get_string_value(config,"PATH_BASE_DIALFS"));
     string_append(&path_bloques,"bloques.dat");
-    free(path_bloques);
+
     int tamanio = block_size*block_count;
     FILE* bloques = fopen(path_bloques,"wb");
     fwrite(archivo_bloques,tamanio,1,bloques);
-
+    free(path_bloques);
     fclose(bloques);
 
 }
@@ -456,11 +456,11 @@ void actualizar_archivo_bitmap()
     char* path_bitmap = string_new();
     string_append(&path_bitmap,config_get_string_value(config,"PATH_BASE_DIALFS"));
     string_append(&path_bitmap,"bitmap.dat");
-    free(path_bitmap);
+
     int tamanio = block_count/8;
     FILE* bitmap = fopen(path_bitmap,"wb");
     fwrite(bitmap_global,tamanio,1,bitmap);
-
+    free(path_bitmap);
     fclose(bitmap);
 }
 
