@@ -272,27 +272,26 @@ void planVRR()
         t_temporal* quantum = temporal_create();
         pthread_create(&interrupciones,NULL,(void*)interrupcionesRR,execute);
 
-
+	PCB* execute_local = execute;
         t_list* lista = enviar_al_CPU(execute);
         atender_syscall(lista);
         
-
         int64_t tiempo = temporal_gettime(quantum);
-        if(execute)
+        if(execute_local)
         {   
-            execute->quantum -= tiempo;
+            execute_local->quantum -= tiempo;
             sem_wait(&mutex_listas);
-            if(cambioDeProceso && execute->quantum >= 0 && !esta_bloqueado(execute))
+            if(cambioDeProceso && execute_local->quantum >= 0 && !esta_bloqueado(execute))
             {
-                execute->quantum -= tiempo;
+                execute_local->quantum -= tiempo;
 
-                list_remove_element(ready,execute);
+                list_remove_element(ready,execute_local);
 
 
-                list_add(readyQuantum,execute); //lo ponemos en la de mayor prioridad 
+                list_add(readyQuantum,execute_local); //lo ponemos en la de mayor prioridad 
                 loggear_lista(readyQuantum,"Ready Priodidad");
             }
-            else execute->quantum = config_get_int_value(config,"QUANTUM");
+            else execute_local->quantum = config_get_int_value(config,"QUANTUM");
             sem_post(&mutex_listas);
         }
 
