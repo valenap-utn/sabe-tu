@@ -533,6 +533,8 @@ void cargar_archivos()
         if(strcmp(entrada->d_name,"bitmap.dat") && strcmp(entrada->d_name,"bloques.dat") && strcmp(entrada->d_name,"..") && strcmp(entrada->d_name,"."))
         {
             sumar_a_la_lista(entrada->d_name);
+            free(entrada);
         }
     }
+    closedir(directorio);
 }
